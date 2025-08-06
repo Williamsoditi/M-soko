@@ -2,10 +2,15 @@ from rest_framework import viewsets, mixins
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from .models import Product, Category, Review
 from .serializers import ProductSerializer, CategorySerializer, ReviewSerializer
+from .filters import ProductFilter
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
+    queryset = Product.objects.all().order_by('id')
+    filterset_class = ProductFilter
     serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    search_fields = ['name', 'description']
+
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
