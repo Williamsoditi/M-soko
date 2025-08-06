@@ -15,8 +15,9 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
-
+    status = serializers.CharField(read_only=True)
+    is_visible = serializers.BooleanField(read_only=True) 
     class Meta:
         model = Review
-        fields = ['id', 'user', 'username', 'product', 'rating', 'comment', 'created_at']
+        fields = ['id', 'user', 'username', 'product', 'rating', 'comment', 'created_at', 'status', 'is_visible']
         read_only_fields = ['user', 'product']

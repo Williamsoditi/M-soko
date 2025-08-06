@@ -1,4 +1,3 @@
-
 from django.db import models
 from django.contrib.auth import get_user_model
 from cloudinary.models import CloudinaryField
@@ -28,6 +27,12 @@ class Product(models.Model):
         return self.name
 
 class Review(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews')
     product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='reviews')
     rating = models.PositiveSmallIntegerField(
@@ -35,6 +40,14 @@ class Review(models.Model):
     )
     comment = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # New moderation fields
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    is_visible = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('user', 'product')
