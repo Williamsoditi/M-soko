@@ -32,10 +32,12 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'items', 'status', 'total_amount', 'created_at']
         read_only_fields = ['user', 'status', 'total_amount']
 
-class CheckoutSerializer(serializers.Serializer):
-    # This serializer will be used to validate the payment data
-    payment_method = serializers.CharField(max_length=20)
-    # You can add more fields depending on the payment method
-    # For M-Pesa:
-    phone_number = serializers.CharField(max_length=15, required=False)
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+
+# class CheckoutSerializer(serializers.Serializer):
+#     # This serializer will be used to validate the payment data
+#     payment_method = serializers.CharField(max_length=20)
+#     # You can add more fields depending on the payment method
+#     # For M-Pesa:
+#     phone_number = serializers.CharField(max_length=15, required=False)
+#     amount = serializers.DecimalField(max_digits=10, decimal_places=2)

@@ -5,7 +5,8 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from .serializers import UserRegistrationSerializer
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from .serializers import UserSerializer
+from .serializers import UserSerializer, AddressSerializer
+from .models import Address
 from django.contrib.auth.models import User
 
 
@@ -47,3 +48,25 @@ class UserLoginView(APIView):
             return Response({'token': token.key, 'user_id': user.pk}, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
+        
+class AddressViewSet(viewsets.ModelViewSet):
+    serializer_class = AddressSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Ensure a user can only see and manage their own addresses.
+        """
+        return Address.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        """
+        Save the authenticated user as the owner of the new address.
+        """
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        """
+        Prevent a user from changing an address to another user's.
+        """
+        serializer.save(user=self.request.user)

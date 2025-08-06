@@ -1,11 +1,13 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from products.models import Product
+from users.models import Address
 
 User = get_user_model()
 
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
+    shipping_address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         max_length=20,
@@ -22,6 +24,11 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order {self.id} by {self.user.username}"
+    
+    @property
+    def get_cart_total(self):
+        # A more efficient way to calculate the total price of all order items
+        return sum(item.get_total_price for item in self.items.all())
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
@@ -31,6 +38,10 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity} of {self.product.name}"
+    
+    @property
+    def get_total_price(self):
+        return self.price * self.quantity
 
 class Payment(models.Model):
     PAYMENT_METHOD_CHOICES = [

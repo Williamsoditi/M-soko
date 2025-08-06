@@ -2,10 +2,11 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import viewsets
+from rest_framework import viewsets, generics
 from .models import Cart, CartItem, Order, OrderItem, Payment
 from products.models import Product
-from .serializers import CartSerializer, OrderSerializer, CheckoutSerializer
+from .serializers import CartSerializer, OrderSerializer
+from users.models import Address
 
 class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
@@ -67,18 +68,69 @@ class CheckoutView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
-        serializer = CheckoutSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        shipping_address_id = request.data.get('shipping_address')
 
-        # Here you will implement the logic for M-Pesa or Stripe
-        payment_method = serializer.validated_data['payment_method']
+        if not shipping_address_id:
+            return Response({'error': 'A shipping address is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Check if the address exists and belongs to the current user
+            shipping_address = Address.objects.get(id=shipping_address_id, user=request.user)
+            
+            # 1. Get the authenticated user's cart
+            cart = Cart.objects.get(user=request.user)
+            cart_items = cart.items.all()
+
+            if not cart_items:
+                return Response({'error': 'Your cart is empty.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # 2. Use a loop to calculate the total amount securely
+            total_amount = 0
+            order_item_data = []
+
+            for item in cart_items:
+                total_amount += item.product.price * item.quantity
+                order_item_data.append({
+                    'product': item.product,
+                    'quantity': item.quantity,
+                    'price': item.product.price
+                })
+
+            # 3. Create a new Order instance
+            order = Order.objects.create(
+                user=request.user,
+                shipping_address=shipping_address, # Link the address here
+                total_amount=total_amount,
+                status='Pending'
+            )
+
+            # 4. Create OrderItem instances from cart items
+            for item_data in order_item_data:
+                OrderItem.objects.create(
+                    order=order,
+                    **item_data
+                )
+
+            # 5. Clear the user's cart by deleting all cart items
+            cart_items.delete()
+
+            # 6. Return a success response with the new order's details
+            serializer = OrderSerializer(order)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Address.DoesNotExist:
+            return Response({'error': 'Shipping address not found or does not belong to you.'}, status=status.HTTP_404_NOT_FOUND)
+        except Cart.DoesNotExist:
+            return Response({'error': 'Your cart could not be found.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': f'An unexpected error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-        if payment_method == 'Mpesa':
-            # This is where we'll handle the STK Push
-            return Response({'message': 'M-Pesa checkout initiated'}, status=status.HTTP_200_OK)
-        elif payment_method == 'Stripe':
-            # This is where we'll handle the PaymentIntent
-            return Response({'message': 'Stripe checkout initiated'}, status=status.HTTP_200_OK)
-        else:
-            return Response({'error': 'Invalid payment method'}, status=status.HTTP_400_BAD_REQUEST)
+class OrderHistoryView(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        This view should return a list of all orders for the currently authenticated user.
+        """
+        return Order.objects.filter(user=self.request.user).order_by('-created_at')
