@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 
 # Import all of your views here
 from products.views import ProductViewSet, CategoryViewSet, ReviewViewSet
-from users.views import UserViewSet, AddressViewSet
+from users.views import UserRegistrationView, UserProfileView, AddressViewSet
 from orders.views import CartViewSet, CartItemViewSet, CheckoutView, OrderHistoryView
 
 # Create a single router for all your apps
@@ -23,18 +23,17 @@ urlpatterns = [
     # Main API endpoint for all router views
     path('api/', include(router.urls)),
 
-     # Nested URLs for Product Reviews
-    # This URL will be used to list and create reviews for a specific product.
+    # Add other non-router views here
+    path('api/register/', UserRegistrationView.as_view(), name='register'),
+    path('api/profile/', UserProfileView.as_view(), name='user-profile'),
+    path('api/checkout/', CheckoutView.as_view(), name='checkout'),
+    path('api/orders/history/', OrderHistoryView.as_view(), name='order-history'),
+    
+    # Nested URLs for Product Reviews
     path('api/products/<int:product_pk>/reviews/', 
          ReviewViewSet.as_view({'get': 'list', 'post': 'create'}), 
          name='product-reviews-list'),
-    
-    # This URL will be used to retrieve a single review.
     path('api/products/<int:product_pk>/reviews/<int:pk>/', 
          ReviewViewSet.as_view({'get': 'retrieve'}), 
          name='product-reviews-detail'),
-
-    # Add other non-router views here
-    path('api/checkout/', CheckoutView.as_view(), name='checkout'),
-    path('api/orders/history/', OrderHistoryView.as_view(), name='order-history'),
 ]

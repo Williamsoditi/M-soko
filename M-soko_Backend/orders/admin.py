@@ -50,3 +50,6 @@ class PaymentAdmin(admin.ModelAdmin):
     list_display = ['id', 'order', 'payment_method', 'status', 'amount', 'transaction_id']
     list_filter = ['payment_method', 'status']
     search_fields = ['transaction_id', 'order__id', 'order__user__username']
+
+admin.site.register(Cart)
+admin.site.register(CartItem)

@@ -1,18 +1,35 @@
-from django.contrib.auth.models import User
-from rest_framework import serializers
-from .models import *
 
+from rest_framework import serializers
+from .models import Address, CustomUser 
+from django.contrib.auth import get_user_model
+
+# Get the currently active user model from settings.py
+User = get_user_model()
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'profile_picture']
+        read_only_fields = ['username']
+        extra_kwargs = {
+            'email': {'required': True},
+        }
+
+    def validate_email(self, value):
+        if CustomUser.objects.filter(email=value).exclude(id=self.instance.id if self.instance else None).exists():
+            raise serializers.ValidationError("This email is already in use.")
+        return value
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
+        model = User 
         fields = ['id', 'username', 'email']
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
 
     class Meta:
-        model = User
+        model = User 
         fields = ['username', 'email', 'password', 'password2']
         extra_kwargs = {
             'password': {'write_only': True}
@@ -26,10 +43,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password2')
+        # Use the correct user model to create the new user
         user = User.objects.create_user(**validated_data)
         return user
     
-
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
