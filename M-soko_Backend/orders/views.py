@@ -1,12 +1,12 @@
-from rest_framework import status
+
+from rest_framework import viewsets, generics, status
 from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import viewsets, generics
-from .models import Cart, CartItem, Order, OrderItem, Payment
-from products.models import Product
-from .serializers import CartSerializer, OrderSerializer
-from users.models import Address
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from django.db import transaction
+from django.db.models import F
+
+from .models import Cart, CartItem, Order, OrderItem
+from .serializers import CartSerializer, CartItemSerializer, OrderSerializer, OrderItemSerializer
 
 class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
@@ -14,126 +14,87 @@ class CartViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Cart.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        # Ensure a user can only have one cart
-        try:
-            Cart.objects.get(user=self.request.user)
-        except Cart.DoesNotExist:
-            serializer.save(user=self.request.user)
+        return self.queryset.filter(user=self.request.user, ordered=False)
 
 class CartItemViewSet(viewsets.ModelViewSet):
+    queryset = CartItem.objects.all()
+    serializer_class = CartItemSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Only show cart items for the authenticated user's cart
-        return CartItem.objects.filter(cart__user=self.request.user)
+        # Ensure a user can only see their own cart items
+        return self.queryset.filter(cart__user=self.request.user)
 
-    def create(self, request, *args, **kwargs):
-        product_id = request.data.get('product_id')
-        quantity = request.data.get('quantity', 1)
+    def perform_create(self, serializer):
+        # A user's cart is automatically created if it doesn't exist
+        cart, created = Cart.objects.get_or_create(user=self.request.user, ordered=False)
         
-        try:
-            cart = Cart.objects.get(user=request.user)
-            product = Product.objects.get(id=product_id)
-        except (Cart.DoesNotExist, Product.DoesNotExist):
-            return Response({'error': 'Invalid data'}, status=status.HTTP_400_BAD_REQUEST)
+        # Check if the product is already in the cart
+        product = serializer.validated_data.get('product')
+        cart_item = CartItem.objects.filter(cart=cart, product=product).first()
 
-        cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
-        
-        if not created:
-            cart_item.quantity += int(quantity)
+        if cart_item:
+            # If the item exists, just update the quantity
+            cart_item.quantity = F('quantity') + serializer.validated_data.get('quantity')
             cart_item.save()
+            serializer.instance = cart_item
         else:
-            cart_item.quantity = int(quantity)
-            cart_item.save()
+            # If the item is new, create it
+            serializer.save(cart=cart)
 
-        return Response(CartSerializer(cart).data, status=status.HTTP_201_CREATED)
 
-class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.all()
+class CheckoutView(generics.CreateAPIView):
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        # A user can only see their own orders
-        return Order.objects.filter(user=self.request.user).order_by('-created_at')
-
     def create(self, request, *args, **kwargs):
-        # This will be replaced by the checkout logic
-        return Response({'error': 'Use the /checkout endpoint to create an order.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        user = self.request.user
+        cart = Cart.objects.filter(user=user, ordered=False).first()
 
-class CheckoutView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    def post(self, request):
-        shipping_address_id = request.data.get('shipping_address')
-
-        if not shipping_address_id:
-            return Response({'error': 'A shipping address is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
+        if not cart or not cart.items.exists(): # <-- Use .items.exists() for the new model
+            return Response({"error": "Your cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
             with transaction.atomic():
-                shipping_address = Address.objects.get(id=shipping_address_id, user=request.user)
-                cart = Cart.objects.get(user=request.user)
-                cart_items = cart.items.all()
+                order = Order.objects.create(user=user, cart=cart) # <-- Set the cart field here
+                total_amount = 0
 
-                if not cart_items:
-                    return Response({'error': 'Your cart is empty.'}, status=status.HTTP_400_BAD_REQUEST)
-
-                # --- NEW INVENTORY LOGIC ---
-                # Check for sufficient stock before creating the order
-                for item in cart_items:
-                    product = item.product
-                    if product.stock < item.quantity:
-                        return Response(
-                            {'error': f'Insufficient stock for product: {product.name}. Available: {product.stock}'},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                
-                total_amount = sum(item.product.price * item.quantity for item in cart_items)
-                
-                order = Order.objects.create(
-                    user=request.user,
-                    shipping_address=shipping_address,
-                    total_amount=total_amount,
-                    status='Pending'
-                )
-                
-                # Create OrderItem instances and decrement stock
-                for item in cart_items:
-                    product = item.product
+                for cart_item in cart.items.all(): # <-- Use .items.all()
+                    # Create an OrderItem from the CartItem
                     OrderItem.objects.create(
                         order=order,
-                        product=product,
-                        quantity=item.quantity,
-                        price=product.price
+                        product=cart_item.product,
+                        quantity=cart_item.quantity,
+                        price=cart_item.product.price
                     )
-                    # Decrement the stock
-                    product.stock -= item.quantity
+                    
+                    product = cart_item.product
+                    product.stock -= cart_item.quantity
                     product.save()
 
-                # Clear the user's cart
-                cart_items.delete()
+                    total_amount += cart_item.quantity * cart_item.product.price
 
-            serializer = OrderSerializer(order)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-            
-        except Address.DoesNotExist:
-            return Response({'error': 'Shipping address not found or does not belong to you.'}, status=status.HTTP_404_NOT_FOUND)
-        except Cart.DoesNotExist:
-            return Response({'error': 'Your cart could not be found.'}, status=status.HTTP_404_NOT_FOUND)
+                order.total_amount = total_amount
+                order.save()
+
+                cart.ordered = True # <-- Mark the cart as ordered
+                cart.save()
+
+                serializer = self.get_serializer(order)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+
         except Exception as e:
-            return Response({'error': f'An unexpected error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        
+
 class OrderHistoryView(generics.ListAPIView):
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """
-        This view should return a list of all orders for the currently authenticated user.
-        """
         return Order.objects.filter(user=self.request.user).order_by('-created_at')
+
+class OrderViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    permission_classes = [IsAdminUser]

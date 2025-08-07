@@ -7,6 +7,7 @@ User = get_user_model()
 
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
+    cart = models.ForeignKey('Cart', on_delete=models.SET_NULL, null=True, related_name='orders')
     shipping_address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
@@ -69,7 +70,7 @@ class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='cart')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    ordered = models.BooleanField(default=False)
     def __str__(self):
         return f"Cart of {self.user.username}"
 
