@@ -7,6 +7,8 @@ import CartPage from "./pages/CartPage";
 import OrderHistoryPage from "./pages/OrderHistoryPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import Navbar from "./components/common/Navbar";
+import Footer from "./components/common/Footer";
+
 
 const App = () => {
   return (
@@ -20,6 +22,7 @@ const App = () => {
         <Route path="/orders" element={<OrderHistoryPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      <Footer />
     </>
   );
 };

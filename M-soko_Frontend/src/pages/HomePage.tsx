@@ -1,61 +1,57 @@
-import { Box, Typography, Button, Container } from '@mui/material';
+// src/pages/HomePage.tsx
+
+import React, { useEffect, useState } from 'react';
+import { Container, Typography, Box, CircularProgress } from '@mui/material';
 import ProductList from '../components/products/ProductList';
+import HeroSection from '../components/home/HeroSection'; 
+import { getProducts, type Product } from '../api/product-api';
 
-const HomePage = () => {
+const HomePage: React.FC = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await getProducts();
+        setProducts(data);
+      } catch (err) {
+        setError("Failed to load products.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
+
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <>
+      <HeroSection /> {/* <-- Use the new HeroSection component here */}
       
-      {/* Hero Section */}
-      <Box
-        sx={{
-          py: { xs: 8, md: 16 },
-          px: { xs: 2, md: 4 },
-          textAlign: 'center',
-          backgroundColor: 'background.default',
-        }}
-      >
-        <Container maxWidth="md">
-          <Typography
-            variant="h2"
-            component="h1"
-            gutterBottom
-            sx={{
-              fontWeight: 'bold',
-              fontSize: { xs: '2.5rem', md: '3.5rem' },
-            }}
-          >
-            Discover and Shop Unique Products
+      <Container maxWidth="xl" sx={{ my: 8 }}>
+        <Box sx={{ textAlign: 'center', mb: 6 }}>
+          <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
+            Featured Products
           </Typography>
-          <Typography
-            variant="h5"
-            sx={{
-              mb: 4,
-              fontSize: { xs: '1.25rem', md: '1.5rem' },
-              color: 'text.secondary',
-            }}
-          >
-            Your one-stop destination for the best products online.
+          <Typography variant="h6" color="text.secondary">
+            Check out our latest and greatest items.
           </Typography>
-          <Button variant="contained" color="primary" size="large">
-            Shop Now
-          </Button>
-        </Container>
-      </Box>
-
-      {/* Products Section */}
-      <Container maxWidth="xl" sx={{ flexGrow: 1, my: 8 }}>
-        <Typography
-          variant="h4"
-          component="h2"
-          sx={{ fontWeight: 'bold', mb: 4, textAlign: 'center' }}
-        >
-          Featured Products
-        </Typography>
+        </Box>
         
-        <ProductList />
-
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
+            <CircularProgress />
+          </Box>
+        ) : error ? (
+          <Box textAlign="center" my={10}>
+            <Typography color="error">{error}</Typography>
+          </Box>
+        ) : (
+          <ProductList products={products} loading={loading} error={error} />
+        )}
       </Container>
-    </Box>
+    </>
   );
 };
 
