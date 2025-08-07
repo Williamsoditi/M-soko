@@ -6,7 +6,7 @@ export interface Product {
     description: string;
     price: string; // Use string to handle DecimalField
     stock: number;
-    image?: string; // Optional image field
+    image_url?: string; // Optional image field
 }
 
 // URL for your products API endpoint

@@ -60,7 +60,7 @@ const ProductDetailPage: React.FC = () => {
         <Grid item xs={12} md={6}>
           <Box
             component="img"
-            src={product.image || "https://via.placeholder.com/600"}
+            src={product.image_url || "https://via.placeholder.com/600"}
             alt={product.name}
             sx={{ width: '100%', borderRadius: 2 }}
           />

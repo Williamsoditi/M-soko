@@ -1,6 +1,4 @@
-# ecommerce_backend/urls.py
-
-from django.contrib import admin
+from baton.autodiscover import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
@@ -19,6 +17,7 @@ router.register(r'orders/cart-items', CartItemViewSet, basename='cart-item')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('baton/', include('baton.urls')),
 
     # Main API endpoint for all router views
     path('api/', include(router.urls)),
