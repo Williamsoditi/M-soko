@@ -1,4 +1,5 @@
-import { Box, Typography, Button, Container, Grid } from '@mui/material';
+import { Box, Typography, Button, Container } from '@mui/material';
+import ProductList from '../components/products/ProductList';
 
 const HomePage = () => {
   return (
@@ -51,29 +52,8 @@ const HomePage = () => {
           Featured Products
         </Typography>
         
-        {/* This is a placeholder for your product grid */}
-        <Grid container spacing={4}>
-          {Array.from({ length: 8 }).map((_, index) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
-              <Box
-                sx={{
-                  p: 4,
-                  height: 300,
-                  bgcolor: 'background.paper',
-                  borderRadius: 2,
-                  boxShadow: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Typography variant="body1" color="text.secondary">
-                  Product Placeholder
-                </Typography>
-              </Box>
-            </Grid>
-          ))}
-        </Grid>
+        <ProductList />
+
       </Container>
     </Box>
   );
