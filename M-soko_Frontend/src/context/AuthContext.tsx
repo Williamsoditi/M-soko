@@ -1,24 +1,62 @@
-import React, { createContext, useContext, useState, type ReactNode, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
-import { loginUser, fetchUserProfile, type UserProfile as AuthApiUserProfile } from '../api/auth-api'; // <-- Import the new function
-
-export interface User {
-  id: number;
-  username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  profile_picture_url?: string;
-}
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: User | null;
-  login: (username: string, password: string) => Promise<void>;
+  user: { username: string; email: string } | null;
+  token: string | null;
+  login: (token: string, user: { username: string; email: string }) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<{ username: string; email: string } | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+
+  // Attempt to load token from localStorage on initial load
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+    if (storedToken && storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setToken(storedToken);
+        setUser(parsedUser);
+        setIsAuthenticated(true);
+        // Set the token as a default header for all axios requests
+        axios.defaults.headers.common['Authorization'] = `Token ${storedToken}`;
+      } catch (error) {
+        console.error("Failed to parse user from localStorage", error);
+        logout(); // Clear invalid data
+      }
+    }
+  }, []);
+
+  const login = (newToken: string, newUser: { username: string; email: string }) => {
+    localStorage.setItem('token', newToken);
+    localStorage.setItem('user', JSON.stringify(newUser));
+    setToken(newToken);
+    setUser(newUser);
+    setIsAuthenticated(true);
+    axios.defaults.headers.common['Authorization'] = `Token ${newToken}`;
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+    setIsAuthenticated(false);
+    delete axios.defaults.headers.common['Authorization'];
+  };
+
+  const value = { isAuthenticated, user, token, login, logout };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -26,56 +64,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
-
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-
-  // Function to get and set the user profile
-  const getAndSetUserProfile = async () => {
-      try {
-          const userProfile: AuthApiUserProfile = await fetchUserProfile();
-          setUser(userProfile);
-          setIsAuthenticated(true);
-      } catch (error) {
-          console.error('Failed to fetch user profile:', error);
-          logout(); // Log out if fetching profile fails
-      }
-  };
-
-  // Check for a token on initial load
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Token ${token}`;
-      getAndSetUserProfile(); // <-- Use the new function here
-    }
-  }, []);
-
-  const login = async (username: string, password: string) => {
-    try {
-        const token = await loginUser(username, password);
-        localStorage.setItem('authToken', token); // Overwrites the old token with the new one
-        await getAndSetUserProfile();
-    } catch (error) {
-        throw error;
-    }
-};
-
-  const logout = () => {
-    localStorage.removeItem('authToken');
-    delete axios.defaults.headers.common['Authorization'];
-    setIsAuthenticated(false);
-    setUser(null);
-  };
-
-  const value = {
-    isAuthenticated,
-    user,
-    login,
-    logout,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

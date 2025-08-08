@@ -18,16 +18,23 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 
+// 👈 New: Import the useAuth hook
+import { useAuth } from '../../context/AuthContext';
+
 const Navbar: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
+  // 👈 New: Use the auth hook to get state and logout function
+  const { isAuthenticated, logout } = useAuth();
+
   const handleDrawerToggle = () => {
     setDrawerOpen(!drawerOpen);
   };
 
+  // 👈 New: Conditionally show profile link if authenticated
   const navLinks = [
     { title: 'Home', path: '/' },
     { title: 'Products', path: '/products' },
@@ -51,35 +58,94 @@ const Navbar: React.FC = () => {
       onClick={handleDrawerToggle}
       onKeyDown={handleDrawerToggle}
     >
+      <IconButton
+        onClick={handleDrawerToggle}
+        sx={{
+          position: 'absolute',
+          top: theme.spacing(1),
+          right: theme.spacing(1),
+          color: theme.palette.text.primary,
+        }}
+      >
+        <CloseIcon />
+      </IconButton>
+
       <List sx={{ width: '100%' }}>
-        {navLinks.map((link) => (
-          <ListItem
-            key={link.title}
-            button
-            component={Link}
-            to={link.path}
-            selected={location.pathname === link.path}
-            sx={{
-              justifyContent: 'center',
-              py: 2,
-              '&.Mui-selected': {
-                backgroundColor: theme.palette.primary.light,
-                color: theme.palette.primary.contrastText,
-                fontWeight: 'bold',
-                borderRadius: 1,
-                '&:hover': {
-                  backgroundColor: theme.palette.primary.dark,
+        {navLinks.map((link) => {
+          const isActive = link.path === '/'
+            ? location.pathname === '/'
+            : location.pathname.startsWith(link.path);
+
+          return (
+            <ListItem
+              key={link.title}
+              button
+              component={Link}
+              to={link.path}
+              selected={isActive}
+              sx={{
+                justifyContent: 'center',
+                py: 2,
+                '&.Mui-selected': {
+                  backgroundColor: theme.palette.primary.main,
+                  color: theme.palette.common.white,
+                  fontWeight: 'bold',
+                  borderRadius: 1,
+                  '&:hover': {
+                    backgroundColor: theme.palette.primary.main,
+                  },
                 },
-              },
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            {link.icon && <Box sx={{ mr: 1 }}>{link.icon}</Box>}
-            <ListItemText primary={link.title} />
-          </ListItem>
-        ))}
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              <ListItemText primary={link.title} />
+            </ListItem>
+          );
+        })}
+        {/* 👈 New: Profile and Logout links in the mobile drawer */}
+        {isAuthenticated ? (
+            <>
+                <ListItem
+                    button
+                    component={Link}
+                    to="/profile"
+                    selected={location.pathname === '/profile'}
+                    sx={{ justifyContent: 'center', py: 2 }}
+                >
+                    <ListItemText primary="Profile" />
+                </ListItem>
+                <ListItem
+                    button
+                    onClick={logout}
+                    sx={{ justifyContent: 'center', py: 2 }}
+                >
+                    <ListItemText primary="Logout" />
+                </ListItem>
+            </>
+        ) : (
+            <>
+                <ListItem
+                    button
+                    component={Link}
+                    to="/login"
+                    selected={location.pathname === '/login'}
+                    sx={{ justifyContent: 'center', py: 2 }}
+                >
+                    <ListItemText primary="Login" />
+                </ListItem>
+                <ListItem
+                    button
+                    component={Link}
+                    to="/register"
+                    selected={location.pathname === '/register'}
+                    sx={{ justifyContent: 'center', py: 2 }}
+                >
+                    <ListItemText primary="Register" />
+                </ListItem>
+            </>
+        )}
       </List>
       <Box sx={{
         position: 'absolute',
@@ -110,7 +176,7 @@ const Navbar: React.FC = () => {
               fontFamily: 'Roboto, sans-serif',
             }}
           >
-            M-soko 
+            M-soko
           </Typography>
 
           {isMobile ? (
@@ -133,7 +199,7 @@ const Navbar: React.FC = () => {
                     color: 'white',
                     ml: 2,
                     fontWeight: 'bold',
-                    borderBottom: location.pathname === link.path ? '2px solid' : 'none',
+                    borderBottom: location.pathname.startsWith(link.path) && link.path !== '/' ? '2px solid' : 'none',
                     borderRadius: 0,
                     transition: 'border-color 0.3s',
                     '&:hover': {
@@ -146,6 +212,36 @@ const Navbar: React.FC = () => {
                   {link.title}
                 </Button>
               ))}
+              {/* 👈 New: Profile and Logout links in the desktop navbar */}
+              {isAuthenticated ? (
+                <>
+                  <Button
+                    component={Link}
+                    to="/profile"
+                    sx={{
+                        color: 'white',
+                        ml: 2,
+                        fontWeight: 'bold',
+                        borderBottom: location.pathname === '/profile' ? '2px solid' : 'none',
+                        borderRadius: 0,
+                    }}
+                  >
+                    Profile
+                  </Button>
+                  <Button color="inherit" onClick={logout} sx={{ ml: 2, fontWeight: 'bold' }}>
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button component={Link} to="/login" sx={{ color: 'white', ml: 2, fontWeight: 'bold' }}>
+                    Login
+                  </Button>
+                  <Button component={Link} to="/register" sx={{ color: 'white', ml: 2, fontWeight: 'bold' }}>
+                    Register
+                  </Button>
+                </>
+              )}
             </Box>
           )}
         </Toolbar>
