@@ -67,12 +67,17 @@ class Payment(models.Model):
     
 
 class Cart(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='cart')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='carts')
+    is_active = models.BooleanField(default=True) # 👈 New: Add this line
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    ordered = models.BooleanField(default=False)
+
+    @property
+    def total_price(self):
+        return sum(item.total_price for item in self.cartitem_set.all())
+
     def __str__(self):
-        return f"Cart of {self.user.username}"
+        return f"Cart for {self.user.username}"
 
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')

@@ -1,43 +1,71 @@
-# orders/serializers.py
 from rest_framework import serializers
-from products.serializers import ProductSerializer
-from .models import Cart, CartItem, Order, OrderItem, Payment
+
+from products.serializers import ProductSerializer  # Assuming you have this
+from .models import Cart, CartItem, Order, OrderItem
+
+# --- Nested Serializers for Items ---
 
 class CartItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True) # Nested serializer to get product details
+    """
+    Serializes individual cart items for a cart.
+    The nested ProductSerializer provides product details.
+    """
+    product = ProductSerializer(read_only=True)
+    product_id = serializers.IntegerField(write_only=True)
 
     class Meta:
         model = CartItem
-        fields = ['id', 'product', 'quantity']
+        fields = ['id', 'product', 'product_id', 'quantity']
 
-class CartSerializer(serializers.ModelSerializer):
-    items = CartItemSerializer(many=True, read_only=True)
-    
-    class Meta:
-        model = Cart
-        fields = ['id', 'items']
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    """
+    Serializes individual order items for an order history view.
+    """
     product = ProductSerializer(read_only=True)
 
     class Meta:
         model = OrderItem
         fields = ['id', 'product', 'quantity', 'price']
+        read_only_fields = ['price']
 
-class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True, read_only=True)
+
+# --- Main Cart and Order Serializers ---
+
+class CartSerializer(serializers.ModelSerializer):
+    """
+    Serializes a full cart, including its nested items.
+    """
+    items = CartItemSerializer(many=True, read_only=True, source='cartitem_set')
+    total_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Cart
+        fields = ['id', 'user', 'items', 'total_price']
+        read_only_fields = ['user']
+
+    def get_total_price(self, obj):
+        """
+        Calculates the total price of all items in the cart.
+        """
+        return sum(item.total_price for item in obj.items.all())
+
+
+class OrderHistorySerializer(serializers.ModelSerializer):
+    """
+    Serializes a completed order for the user's order history.
+    """
+    items = OrderItemSerializer(many=True, read_only=True, source='orderitem_set')
 
     class Meta:
         model = Order
-        fields = ['id', 'user', 'items', 'status', 'total_amount', 'created_at']
-        read_only_fields = ['user', 'status', 'total_amount']
+        fields = ['id', 'user', 'total_price', 'status', 'created_at', 'items']
+        read_only_fields = ['user', 'total_price', 'status', 'created_at']
 
+# --- Other Serializers ---
 
-
-# class CheckoutSerializer(serializers.Serializer):
-#     # This serializer will be used to validate the payment data
-#     payment_method = serializers.CharField(max_length=20)
-#     # You can add more fields depending on the payment method
-#     # For M-Pesa:
-#     phone_number = serializers.CharField(max_length=15, required=False)
-#     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+class CheckoutSerializer(serializers.Serializer):
+    """
+    A simple serializer to validate the cart_id for checkout.
+    """
+    cart_id = serializers.IntegerField()

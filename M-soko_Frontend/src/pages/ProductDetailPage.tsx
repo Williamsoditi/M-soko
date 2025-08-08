@@ -1,33 +1,34 @@
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { getProductById, type Product } from '../api/product-api';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import {
-  Container,
-  Grid,
   Box,
   Typography,
   CircularProgress,
   Button,
-  Rating,
-  Divider,
+  Paper,
+  Alert,
 } from '@mui/material';
+import AddShoppingCartIcon from '@mui/icons-material/AddShoppingCart';
 
 const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [product, setProduct] = useState<Product | null>(null);
+  const navigate = useNavigate();
+  const { isAuthenticated, token } = useAuth();
+
+  const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
+  // Fetch product details on component load
   useEffect(() => {
     const fetchProduct = async () => {
-      if (!id) {
-        setError('No product ID provided.');
-        setLoading(false);
-        return;
-      }
       try {
-        const productData = await getProductById(parseInt(id));
-        setProduct(productData);
+        setLoading(true);
+        const response = await axios.get(`http://localhost:8000/api/products/${id}/`);
+        setProduct(response.data);
       } catch (err) {
         setError('Failed to fetch product details.');
       } finally {
@@ -37,79 +38,79 @@ const ProductDetailPage: React.FC = () => {
     fetchProduct();
   }, [id]);
 
+  // Handle adding an item to the cart
+  // const handleAddToCart = async () => {
+  //   if (!isAuthenticated || !token) {
+  //     navigate('/login'); // Redirect to login if not authenticated
+  //     return;
+  //   }
+
+  //   try {
+  //     // Send a POST request to add the item to the cart
+  //     await axios.post(
+  //       'http://localhost:8000/api/orders/cart-items/',
+  //       { product: product.id, quantity: 1 },
+  //       {
+  //         headers: {
+  //           Authorization: `Token ${token}`,
+  //         },
+  //       }
+  //     );
+  //     setMessage('Item added to cart successfully!');
+  //   } catch (err) {
+  //     setMessage('Failed to add item to cart. Please try again.');
+  //     console.error(err);
+  //   }
+  // };
+
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <CircularProgress />
       </Box>
     );
   }
 
   if (error) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
-        <Typography color="error">{error}</Typography>
-      </Box>
-    );
+    return <Typography color="error">{error}</Typography>;
   }
 
   if (!product) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
-        <Typography>Product not found.</Typography>
-      </Box>
-    );
+    return <Typography>Product not found.</Typography>;
   }
 
   return (
-    <Container sx={{ my: 8 }}>
-      <Grid container spacing={4}>
-        <Grid item xs={12} md={6}>
-          <Box
-            component="img"
-            src={product.image_url || 'https://via.placeholder.com/600'}
-            alt={product.name}
-            sx={{
-              width: '100%',
-              borderRadius: 2,
-              boxShadow: 3,
-              aspectRatio: '1 / 1', // Maintain aspect ratio
-              objectFit: 'cover', // Ensures image fills the box
-            }}
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
-            {product.name}
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', my: 2 }}>
-            <Rating name="read-only" value={4} readOnly />
-            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-              (150 reviews)
-            </Typography>
-          </Box>
-          <Typography variant="h5" color="text.secondary" sx={{ textDecoration: 'line-through' }}>
-            Kshs{(product.price * 1.2).toFixed(2)}
-          </Typography>
-          <Typography variant="h3" color="primary" sx={{ my: 1, fontWeight: 'bold' }}>
-            Kshs {product.price}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ my: 2 }}>
-            Shipping calculated at checkout.
-          </Typography>
-          <Divider sx={{ my: 3 }} />
-          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-            Product Description
-          </Typography>
-          <Typography variant="body1" sx={{ mt: 1, mb: 4, color: 'text.secondary' }}>
-            {product.description}
-          </Typography>
-          <Button variant="contained" color="primary" size="large" fullWidth>
+    <Box sx={{ mt: 4, maxWidth: 800, mx: "auto", p: 2 }}>
+      <Paper elevation={3} sx={{ p: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          {product.name}
+        </Typography>
+        {message && (
+          <Alert
+            severity={message.includes("success") ? "success" : "error"}
+            sx={{ mb: 2 }}
+          >
+            {message}
+          </Alert>
+        )}
+        <Typography variant="h6" color="text.secondary">
+          Kshs. {parseFloat(product.price).toFixed(2) || "N/A"}
+        </Typography>
+        <Typography variant="body1" sx={{ mt: 2 }}>
+          {product.description}
+        </Typography>
+        <Box sx={{ mt: 3 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddShoppingCartIcon />}
+            onClick={handleAddToCart}
+          >
             Add to Cart
           </Button>
-        </Grid>
-      </Grid>
-    </Container>
+        </Box>
+      </Paper>
+    </Box>
   );
 };
 
