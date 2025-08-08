@@ -39,7 +39,7 @@ const ProductDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
         <CircularProgress />
       </Box>
     );
@@ -47,7 +47,7 @@ const ProductDetailPage: React.FC = () => {
 
   if (error) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
         <Typography color="error">{error}</Typography>
       </Box>
     );
@@ -55,7 +55,7 @@ const ProductDetailPage: React.FC = () => {
 
   if (!product) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
         <Typography>Product not found.</Typography>
       </Box>
     );

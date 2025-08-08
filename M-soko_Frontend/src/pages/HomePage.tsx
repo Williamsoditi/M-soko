@@ -1,12 +1,33 @@
-import { Box, Typography, Button, Container } from '@mui/material';
-import ProductList from '../components/products/ProductList';
-import HeroSection from '../components/home/HeroSection';
 
-const HomePage = () => {
+import React, { useEffect, useState } from 'react';
+import { Container, Typography, Box, CircularProgress } from '@mui/material';
+import ProductList from '../components/products/ProductList'; 
+import HeroSection from '../components/home/HeroSection';
+import { getProducts, type Product } from '../api/product-api';
+
+const HomePage: React.FC = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await getProducts();
+        setProducts(data);
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+        setError("Failed to load products. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
+
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <>
       
-      {/* Hero Section */}
       <HeroSection />
 
 
@@ -20,11 +41,19 @@ const HomePage = () => {
           Featured Products
         </Typography>
         
-        <ProductList />
-
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', my: 10 }}>
+            <CircularProgress />
+          </Box>
+        ) : error ? (
+          <Box textAlign="center" my={10}>
+            <Typography color="error">{error}</Typography>
+          </Box>
+        ) : (
+          <ProductList products={products} loading={loading} error={error} />
+        )}
       </Container>
-    </Box>
+    </>
   );
 };
-
 export default HomePage;
