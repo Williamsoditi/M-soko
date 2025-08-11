@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext'; // 👈 Your Auth Context
+import { useNavigate } from 'react-router-dom'; // 👈 Your Router
 import {
   Box,
   Typography,
@@ -18,26 +20,26 @@ import {
   Button,
 } from '@mui/material';
 
-// Assuming your API endpoint for products is: 'http://localhost:8000/api/products/'
-// And for categories is: 'http://localhost:8000/api/categories/'
-
-// Type definition for a product object to improve type safety
+// Type definition for a product object
 interface Product {
   id: number;
   name: string;
   description: string;
-  price: string | number; // Price can be a string or number from the API
+  price: string | number;
   image_url: string;
-  category_id: number; // Assuming a category_id is available
+  category_id: number;
 }
 
 // Type definition for a category object
 interface Category {
-  id: string | number; // 'All' will be a string, others will be numbers
+  id: string | number;
   name: string;
 }
 
 const ProductsPage = () => {
+  const { isAuthenticated, token } = useAuth(); // 👈 Added Auth Context
+  const navigate = useNavigate(); // 👈 Added Navigate Hook
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | number>('All');
   const [products, setProducts] = useState<Product[]>([]);
@@ -66,7 +68,6 @@ const ProductsPage = () => {
         setLoadingCategories(false);
       }
     };
-
     fetchCategories();
   }, []);
 
@@ -75,19 +76,15 @@ const ProductsPage = () => {
     const fetchProducts = async () => {
       setLoadingProducts(true);
       setErrorProducts(null);
-
       try {
         const queryParams = new URLSearchParams();
         if (searchTerm) {
           queryParams.append('search', searchTerm);
         }
         if (selectedCategory !== 'All') {
-          // Changed to use category ID for more reliable filtering
           queryParams.append('category', String(selectedCategory));
         }
-
         const API_URL = `http://localhost:8000/api/products/?${queryParams.toString()}`;
-
         const response = await axios.get(API_URL);
         setProducts(response.data);
       } catch (err) {
@@ -97,7 +94,6 @@ const ProductsPage = () => {
         setLoadingProducts(false);
       }
     };
-
     fetchProducts();
   }, [searchTerm, selectedCategory]);
 
@@ -107,6 +103,41 @@ const ProductsPage = () => {
 
   const handleCategoryChange = (event: any) => {
     setSelectedCategory(event.target.value);
+  };
+  
+  // 👈 FIX: This is the new, correct handleAddToCart function
+const handleAddToCart = async (product: Product) => {
+        if (!isAuthenticated || !token) {
+            navigate('/login');
+            return;
+        }
+
+        try {
+            await axios.post(
+                'http://localhost:8000/api/orders/cart-items/',
+                { 
+                    // 👈 FIX: Change 'product' to 'product_id'
+                    product_id: product.id,
+                    quantity: 1 
+                },
+                {
+                    headers: {
+                        Authorization: `Token ${token}`,
+                    }
+                }
+            );
+            // Navigate to the cart page after a successful API call
+            navigate('/cart');
+            
+        } catch (err) {
+            console.error('Failed to add item to cart:', err);
+            // Provide a more descriptive alert based on the error
+            if (axios.isAxiosError(err) && err.response) {
+                alert(`Failed to add item to cart: ${err.response.data.detail || 'An unexpected error occurred.'}`);
+            } else {
+                alert('Failed to add item to cart. Please check your login status or try again.');
+            }
+        }
   };
 
   return (
@@ -254,7 +285,7 @@ const ProductsPage = () => {
                       {product.description}
                     </Typography>
                     <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>
-                      ${product.price ? parseFloat(String(product.price)).toFixed(2) : '0.00'}
+                      Kshs {product.price ? parseFloat(String(product.price)).toFixed(2) : '0.00'}
                     </Typography>
                   </CardContent>
                   <CardActions sx={{ p: 2, justifyContent: 'flex-end' }}>
@@ -269,6 +300,7 @@ const ProductsPage = () => {
                           boxShadow: 4,
                         },
                       }}
+                      onClick={() => handleAddToCart(product)} // 👈 FIX: Added onClick handler
                     >
                       Add to Cart
                     </Button>

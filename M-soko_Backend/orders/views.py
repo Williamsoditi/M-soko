@@ -1,3 +1,5 @@
+# orders/views.py
+
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -31,38 +33,20 @@ class CartItemViewSet(viewsets.ModelViewSet):
             return CartItem.objects.filter(cart=cart)
         return CartItem.objects.none()
 
-    def perform_create(self, serializer):
-        # Get or create the active cart for the authenticated user
-        cart, created = Cart.objects.get_or_create(user=self.request.user, is_active=True)
+    # 👈 FIX: We remove the custom perform_create method here
+    # The default behavior of the viewset will now call the serializer's create method
+    # which contains all the correct logic.
 
-        # Extract the product from the validated data
-        product = serializer.validated_data.get('product')
-        quantity = serializer.validated_data.get('quantity', 1)
-
-        # Check if the item already exists in the cart
-        existing_item = CartItem.objects.filter(cart=cart, product=product).first()
+    # def update(self, request, *args, **kwargs):
+    #     partial = kwargs.pop('partial', False)
+    #     instance = self.get_object()
+    #     serializer = self.get_serializer(instance, data=request.data, partial=partial)
+    #     serializer.is_valid(raise_exception=True)
+    #     self.perform_update(serializer)
+    #     return Response(serializer.data)
         
-        if existing_item:
-            # If it exists, update the quantity
-            existing_item.quantity += quantity
-            existing_item.save()
-            serializer.instance = existing_item
-        else:
-            # If not, create a new cart item
-            serializer.save(cart=cart)
-    
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data)
-
 class CheckoutView(APIView):
-    """
-    Handles the checkout process.
-    """
+    # ... (rest of your CheckoutView)
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
@@ -95,14 +79,10 @@ class CheckoutView(APIView):
         cart.is_active = False
         cart.save()
 
-        # You can add payment processing logic here
-
         return Response({"detail": "Checkout successful! Your order has been placed."}, status=status.HTTP_200_OK)
 
 class OrderHistoryView(generics.ListAPIView):
-    """
-    Lists the order history for the authenticated user.
-    """
+    # ... (rest of your OrderHistoryView)
     serializer_class = OrderHistorySerializer
     permission_classes = [IsAuthenticated]
 

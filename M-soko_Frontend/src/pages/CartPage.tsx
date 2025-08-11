@@ -1,156 +1,244 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import {
-  Box,
+  Container,
   Typography,
-  Paper,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
+  CircularProgress,
+  Box,
   Button,
+  Card,
+  CardContent,
+  CardMedia,
+  Grid,
+  IconButton,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
-import DeleteIcon from '@mui/icons-material/Delete';
 
-const CartPage: React.FC = () => {
-  const { isAuthenticated, token, user } = useAuth();
-  const [cart, setCart] = useState<any | null>(null);
+// Assuming these interfaces match your backend data structure
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  image_url: string;
+}
+
+interface CartItem {
+  id: number;
+  product: Product;
+  quantity: number;
+  total_price: number;
+}
+
+interface Cart {
+  id: number;
+  items: CartItem[];
+  total_price: number;
+}
+
+const CartPage = () => {
+  const { token, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
     if (!isAuthenticated || !token) {
       setLoading(false);
+      setError("Please log in to view your cart.");
       return;
     }
+
     try {
-      setLoading(true);
       const response = await axios.get('http://localhost:8000/api/orders/carts/', {
         headers: {
           Authorization: `Token ${token}`,
         },
       });
-      // 👈 The fix is here: check if the results array exists and has a length
-      if (response.data && response.data.results && response.data.results.length > 0) {
-        setCart(response.data.results[0]);
+      
+      if (response.data && response.data.length > 0) {
+        setCart(response.data[0]);
       } else {
-        setCart(null); // Set cart to null if no active cart is found
+        setCart(null);
       }
-      setError(null);
     } catch (err) {
-      setError('Failed to fetch cart data. Please try again.');
-      console.error(err);
+      console.error('Failed to fetch cart:', err);
+      setError('Failed to load cart data. Please try logging in again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated, token]);
 
   useEffect(() => {
     fetchCart();
-  }, [isAuthenticated, token]);
-
-  const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
-    if (newQuantity < 1) return;
-    try {
-      await axios.put(
-        `http://localhost:8000/api/orders/cart-items/${itemId}/`,
-        { quantity: newQuantity, cart: cart?.id },
-        { headers: { Authorization: `Token ${token}` } }
-      );
-      // Re-fetch the cart to get the most up-to-date data and total
-      fetchCart();
-    } catch (err) {
-      setError('Failed to update item quantity.');
-      console.error(err);
-    }
-  };
+  }, [fetchCart]);
 
   const handleRemoveItem = async (itemId: number) => {
+    if (!isAuthenticated || !token) {
+      navigate('/login');
+      return;
+    }
     try {
       await axios.delete(`http://localhost:8000/api/orders/cart-items/${itemId}/`, {
-        headers: { Authorization: `Token ${token}` },
+        headers: {
+          Authorization: `Token ${token}`,
+        },
       });
-      // Re-fetch the cart after removing an item
+      // Refetch cart to update the UI
       fetchCart();
     } catch (err) {
-      setError('Failed to remove item.');
-      console.error(err);
+      console.error('Failed to remove item:', err);
+      alert('Failed to remove item. Please try again.');
     }
   };
 
-  const handleCheckout = async () => {
+  const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
+    if (newQuantity < 1) {
+      // If quantity is reduced to 0, call the remove function
+      handleRemoveItem(itemId);
+      return;
+    }
+
+    if (!isAuthenticated || !token) {
+      navigate('/login');
+      return;
+    }
     try {
-      await axios.post(
-        'http://localhost:8000/api/checkout/',
-        { cart_id: cart?.id },
-        { headers: { Authorization: `Token ${token}` } }
-      );
-      alert('Checkout successful! Your order has been placed.');
-      setCart(null); // Clear the cart after a successful checkout
-      navigate('/orders'); // Redirect to order history
+      await axios.patch(`http://localhost:8000/api/orders/cart-items/${itemId}/`, {
+        quantity: newQuantity,
+      }, {
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+      });
+      fetchCart();
     } catch (err) {
-      setError('Checkout failed. Please try again.');
-      console.error(err);
+      console.error('Failed to update quantity:', err);
+      alert('Failed to update quantity. Please try again.');
     }
   };
 
-  if (loading) return <Typography>Loading cart...</Typography>;
-  if (error) return <Typography color="error">{error}</Typography>;
-  if (!user) return <Typography>Please log in to view your cart.</Typography>;
-  if (!cart || cart.items.length === 0) return <Typography>Your cart is empty.</Typography>;
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container sx={{ mt: 4, textAlign: 'center' }}>
+        <Typography variant="h5" color="error">
+          {error}
+        </Typography>
+        <Button onClick={() => navigate('/login')} sx={{ mt: 2 }} variant="contained">
+          Log In
+        </Button>
+      </Container>
+    );
+  }
+
+  if (!cart || !cart.items || cart.items.length === 0) {
+    return (
+      <Container sx={{ mt: 4, textAlign: 'center' }}>
+        <Typography variant="h5" color="text.secondary" gutterBottom>Your Cart is Empty</Typography>
+        <Button onClick={() => navigate('/')} sx={{ mt: 2 }} variant="contained" color="primary">
+          Start Shopping
+        </Button>
+      </Container>
+    );
+  }
 
   return (
-    <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto', p: 2 }}>
-      <Typography variant="h4" gutterBottom>
+    <Container maxWidth="lg" sx={{ mt: 4, pb: 8 }}>
+      <Typography variant="h3" component="h1" gutterBottom align="center" sx={{ fontWeight: 'bold', mb: 4 }}>
         Your Shopping Cart
       </Typography>
-      <Paper elevation={3} sx={{ p: 2 }}>
-        <List>
-          {cart.items.map((item: any) => (
-            <React.Fragment key={item.id}>
-              <ListItem
-                secondaryAction={
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <IconButton onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}>
-                      <RemoveIcon />
-                    </IconButton>
-                    <Typography sx={{ mx: 1 }}>{item.quantity}</Typography>
-                    <IconButton onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}>
-                      <AddIcon />
-                    </IconButton>
-                    <IconButton edge="end" onClick={() => handleRemoveItem(item.id)}>
-                      <DeleteIcon />
-                    </IconButton>
-                  </Box>
-                }
-              >
-                <ListItemText
-                  primary={item.product.name}
-                  secondary={`Kshs. ${item.product.price.toFixed(2)}`}
-                />
-              </ListItem>
-              <Divider />
-            </React.Fragment>
-          ))}
-        </List>
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-          <Typography variant="h6">
-            Total: Kshs. {cart.total_price.toFixed(2)}
-          </Typography>
-        </Box>
-        <Box sx={{ mt: 2 }}>
-          <Button variant="contained" color="primary" fullWidth onClick={handleCheckout}>
-            Proceed to Checkout
-          </Button>
-        </Box>
-      </Paper>
-    </Box>
+      <Grid container spacing={3}>
+        {cart.items.map((item) => (
+          <Grid item xs={12} key={item.id}>
+            <Card 
+              sx={{ 
+                display: 'flex', 
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: 'center',
+                boxShadow: 3, 
+                borderRadius: 2, 
+                p: 2,
+                transition: 'transform 0.2s ease-in-out',
+                '&:hover': {
+                  transform: 'translateY(-3px)',
+                },
+              }}
+            >
+              <CardMedia
+                component="img"
+                sx={{ 
+                  width: { xs: '100%', sm: 120 },
+                  height: { xs: 150, sm: 120 },
+                  objectFit: 'contain', 
+                  borderRadius: 1,
+                  flexShrink: 0,
+                  mb: { xs: 2, sm: 0 },
+                  mr: { xs: 0, sm: 2 },
+                }}
+                image={item.product.image_url || 'https://placehold.co/120x120/CCCCCC/000000?text=No+Image'}
+                alt={item.product.name}
+              />
+              <CardContent sx={{ flexGrow: 1, p: 1 }}>
+                <Typography variant="h6" component="div" sx={{ fontWeight: 'medium' }}>
+                  {item.product.name}
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  Unit Price: Kshs {parseFloat(String(item.product.price)).toFixed(2)}
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                  <Typography variant="body1">Quantity:</Typography>
+                  <IconButton size="small" onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1}>
+                    <RemoveIcon fontSize="small" />
+                  </IconButton>
+                  <Typography variant="body1" sx={{ mx: 1 }}>{item.quantity}</Typography>
+                  <IconButton size="small" onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}>
+                    <AddIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+                <Typography variant="h5" color="primary" sx={{ mt: 1, fontWeight: 'bold' }}>
+                  Item Total: Kshs {item.total_price.toFixed(2)}
+                </Typography>
+              </CardContent>
+              <Box sx={{ p: 2, alignSelf: { xs: 'flex-end', sm: 'center' } }}>
+                <IconButton color="error" aria-label="delete item" onClick={() => handleRemoveItem(item.id)}>
+                  <DeleteIcon />
+                </IconButton>
+              </Box>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+      <Box sx={{ mt: 5, p: 3, backgroundColor: 'background.paper', borderRadius: 2, boxShadow: 4, textAlign: 'right' }}>
+        <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
+          Cart Total: Kshs {cart.total_price.toFixed(2)}
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          size="large"
+          sx={{ mt: 2, px: 5, py: 1.5, borderRadius: 2, boxShadow: 3 }}
+          onClick={() => navigate('/checkout')}
+        >
+          Proceed to Checkout
+        </Button>
+      </Box>
+    </Container>
   );
 };
 
