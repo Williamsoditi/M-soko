@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from products.serializers import ProductSerializer  # Assuming you have this
-from .models import Cart, CartItem, Order, OrderItem
+from .models import Cart, CartItem, Order, OrderItem, Product
 
 # --- Nested Serializers for Items ---
 
@@ -16,6 +16,13 @@ class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = ['id', 'product', 'product_id', 'quantity']
+
+    def create(self, validated_data):
+        product_id = validated_data.pop('product_id')
+        product = Product.objects.get(id=product_id)
+        
+        # Now, create the CartItem with the actual Product object
+        return CartItem.objects.create(product=product, **validated_data)
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

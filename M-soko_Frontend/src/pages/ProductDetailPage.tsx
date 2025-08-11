@@ -39,29 +39,29 @@ const ProductDetailPage: React.FC = () => {
   }, [id]);
 
   // Handle adding an item to the cart
-  // const handleAddToCart = async () => {
-  //   if (!isAuthenticated || !token) {
-  //     navigate('/login'); // Redirect to login if not authenticated
-  //     return;
-  //   }
+  const handleAddToCart = async () => {
+    if (!isAuthenticated || !token) {
+      navigate('/login'); // Redirect to login if not authenticated
+      return;
+    }
 
-  //   try {
-  //     // Send a POST request to add the item to the cart
-  //     await axios.post(
-  //       'http://localhost:8000/api/orders/cart-items/',
-  //       { product: product.id, quantity: 1 },
-  //       {
-  //         headers: {
-  //           Authorization: `Token ${token}`,
-  //         },
-  //       }
-  //     );
-  //     setMessage('Item added to cart successfully!');
-  //   } catch (err) {
-  //     setMessage('Failed to add item to cart. Please try again.');
-  //     console.error(err);
-  //   }
-  // };
+    try {
+      // Send a POST request to add the item to the cart
+      await axios.post(
+        'http://localhost:8000/api/orders/cart-items/',
+        { product_id: product.id, quantity: 1 },
+        {
+          headers: {
+            Authorization: `Token ${token}`,
+          },
+        }
+      );
+      setMessage('Item added to cart successfully!');
+    } catch (err) {
+      setMessage('Failed to add item to cart. Please try again.');
+      console.error(err);
+    }
+  };
 
   if (loading) {
     return (
