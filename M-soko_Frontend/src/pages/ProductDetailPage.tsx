@@ -1,6 +1,4 @@
-// src/pages/ProductDetailPage.tsx
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -29,6 +27,7 @@ const ProductDetailPage = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null); // State for success/error messages
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -45,39 +44,33 @@ const ProductDetailPage = () => {
     fetchProduct();
   }, [id]);
 
+  // Handle adding an item to the cart
   const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      navigate('/login');
+    if (!isAuthenticated || !token) {
+      navigate('/login'); // Redirect to login if not authenticated
       return;
     }
 
     if (!product) {
-      alert('Product details not available.');
+      setMessage('Product data is not available.');
       return;
     }
-    
+
     try {
+      // Send a POST request to add the item to the cart
       await axios.post(
         'http://localhost:8000/api/orders/cart-items/',
-        { 
-          // FIX: Changed 'product' back to 'product_id'
-          product_id: product.id, 
-          quantity: 1 
+        { product_id: product.id, quantity: 1 },
+        {
+          headers: {
+            Authorization: `Token ${token}`,
+          },
         }
       );
-      
-      setTimeout(() => {
-        navigate('/cart');
-      }, 500); 
-    } catch (err: any) { 
-      console.error('Failed to add item to cart:', err);
-
-      if (err.response && err.response.status === 400) {
-        console.error('Backend validation errors:', err.response.data);
-        alert('Could not add item to cart. Please see console for details.');
-      } else {
-        alert('Failed to add item to cart. Please try again.');
-      }
+      setMessage('Item added to cart successfully!');
+    } catch (err) {
+      setMessage('Failed to add item to cart. Please try again.');
+      console.error(err);
     }
   };
 
@@ -97,6 +90,9 @@ const ProductDetailPage = () => {
         </Typography>
       </Container>
     );
+  }
+  if (message) {
+    return <Typography color={error ? "error" : "success"} textAlign="center">{message}</Typography>;
   }
 
   return (

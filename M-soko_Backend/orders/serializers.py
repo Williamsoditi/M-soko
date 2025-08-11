@@ -4,6 +4,7 @@ from django.db.models import Sum  # Required for aggregating quantities
 from products.serializers import ProductSerializer  # Ensure this import is correct
 from products.models import Product # Ensure Product model is imported
 
+from products.serializers import ProductSerializer  # Assuming you have this
 from .models import Cart, CartItem, Order, OrderItem
 
 # --- Nested Serializers for Items ---
@@ -65,6 +66,13 @@ class CartItemSerializer(serializers.ModelSerializer):
             # If the item doesn't exist, create a new one
             product = Product.objects.get(id=product_id)
             return CartItem.objects.create(cart=cart, product=product, quantity=quantity)
+
+    def create(self, validated_data):
+        product_id = validated_data.pop('product_id')
+        product = Product.objects.get(id=product_id)
+        
+        # Now, create the CartItem with the actual Product object
+        return CartItem.objects.create(product=product, **validated_data)
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
