@@ -18,6 +18,7 @@ import {
   CardContent,
   CardActions,
   Button,
+  CardActionArea, // Import CardActionArea
 } from '@mui/material';
 
 // Type definition for a product object
@@ -105,7 +106,15 @@ const ProductsPage = () => {
     setSelectedCategory(event.target.value);
   };
 
-  const handleAddToCart = async (product: Product) => {
+  // New function to handle card clicks
+  const handleCardClick = (productId: number) => {
+    navigate(`/products/${productId}`);
+  };
+
+  const handleAddToCart = async (event: React.MouseEvent<HTMLButtonElement>, product: Product) => {
+    // Stop the event from propagating to the parent CardActionArea
+    event.stopPropagation();
+    
     if (!isAuthenticated || !token) {
       navigate('/login');
       return;
@@ -282,49 +291,51 @@ const ProductsPage = () => {
                     height: '100%',
                   }}
                 >
-                  <CardMedia
-                    component="img"
-                    height="220"
-                    image={product.image_url || 'https://placehold.co/400x400/CCCCCC/000000?text=No+Image'}
-                    alt={product.name}
-                    sx={{
-                      objectFit: 'cover',
-                      borderTopLeftRadius: 3,
-                      borderTopRightRadius: 3,
-                    }}
-                  />
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box sx={{ minHeight: '64px' }}> 
-                      <Typography
-                        variant="h6"
-                        component="div"
-                        sx={{ fontWeight: 'medium', mb: 1, color: 'text.primary', lineHeight: 1.3 }}
-                      >
-                        {product.name}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ minHeight: '40px' }}> 
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{
-                          mb: 2,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                        }}
-                      >
-                        {product.description}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center' }}> {/* Fixed height for price */}
-                      <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>
-                        Kshs {product.price ? parseFloat(String(product.price)).toFixed(2) : '0.00'}
-                      </Typography>
-                    </Box>
-                  </CardContent>
+                  <CardActionArea onClick={() => handleCardClick(product.id)} component="div">
+                    <CardMedia
+                      component="img"
+                      height="220"
+                      image={product.image_url || 'https://placehold.co/400x400/CCCCCC/000000?text=No+Image'}
+                      alt={product.name}
+                      sx={{
+                        objectFit: 'cover',
+                        borderTopLeftRadius: 3,
+                        borderTopRightRadius: 3,
+                      }}
+                    />
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Box sx={{ minHeight: '64px' }}> 
+                        <Typography
+                          variant="h6"
+                          component="div"
+                          sx={{ fontWeight: 'medium', mb: 1, color: 'text.primary', lineHeight: 1.3 }}
+                        >
+                          {product.name}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ minHeight: '40px' }}> 
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            mb: 2,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                          }}
+                        >
+                          {product.description}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center' }}> 
+                        <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>
+                          Kshs {product.price ? parseFloat(String(product.price)).toFixed(2) : '0.00'}
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </CardActionArea>
                   <CardActions sx={{ p: 2, justifyContent: 'flex-end', mt: 'auto' }}>
                     <Button
                       variant="contained"
@@ -337,7 +348,7 @@ const ProductsPage = () => {
                           boxShadow: 4,
                         },
                       }}
-                      onClick={() => handleAddToCart(product)}
+                      onClick={(e) => handleAddToCart(e, product)}
                     >
                       Add to Cart
                     </Button>

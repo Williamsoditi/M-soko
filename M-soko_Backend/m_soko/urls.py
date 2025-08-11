@@ -13,7 +13,7 @@ from users.views import (
     AddressViewSet, 
     LogoutView
 )
-from orders.views import CartViewSet, CartItemViewSet, CheckoutView, OrderHistoryView
+from orders.views import CartViewSet, CartItemViewSet, CheckoutView
 
 # Create a single router for all your apps
 router = DefaultRouter()
@@ -42,7 +42,7 @@ urlpatterns = [
     path('api/profile/edit/', UserProfileUpdateView.as_view(), name='user-profile-edit'),
     
     path('api/checkout/', CheckoutView.as_view(), name='checkout'),
-    path('api/orders/history/', OrderHistoryView.as_view(), name='order-history'),
+    # path('api/orders/history/', OrderHistoryView.as_view(), name='order-history'),
     
     # Nested URLs for Product Reviews
     path('api/products/<int:product_pk>/reviews/', 

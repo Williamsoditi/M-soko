@@ -107,7 +107,7 @@ const ProductDetailPage = () => {
         <Box sx={{ flex: 1 }}>
           <Typography variant="h3" gutterBottom>{product.name}</Typography>
           <Typography variant="h4" color="primary" sx={{ mb: 2 }}>
-            ${parseFloat(String(product.price)).toFixed(2)}
+            Kshs {parseFloat(String(product.price)).toFixed(2)}
           </Typography>
           <Typography variant="body1" color="text.secondary" paragraph>
             {product.description}
