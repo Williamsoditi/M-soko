@@ -125,6 +125,37 @@ const CartPage = () => {
     }
   };
 
+  const handleCheckout = async () => {
+        if (!isAuthenticated || !token) {
+            alert('Please log in to complete your order.');
+            navigate('/login');
+            return;
+        }
+
+        try {
+            await axios.post(
+                'http://localhost:8000/api/checkout/',
+                {}, // The body can be empty as the backend uses the authenticated user's cart
+                {
+                    headers: {
+                        Authorization: `Token ${token}`,
+                    },
+                }
+            );
+
+            alert('Checkout successful! Your order has been placed.');
+            navigate('/order-history'); // Redirect to the order history page
+
+        } catch (err) {
+            console.error('Checkout failed:', err);
+            let errorMessage = 'Failed to place your order. Please try again.';
+            if (axios.isAxiosError(err) && err.response && err.response.data.detail) {
+                errorMessage = err.response.data.detail;
+            }
+            alert(errorMessage);
+        }
+    };
+
 
   if (loading) {
     return (
@@ -149,9 +180,22 @@ const CartPage = () => {
 
   if (!cart || !cart.items || cart.items.length === 0) {
     return (
-      <Container sx={{ mt: 4, textAlign: 'center' }}>
-        <Typography variant="h5" color="text.secondary" gutterBottom>Your Cart is Empty</Typography>
-        <Button onClick={() => navigate('/')} sx={{ mt: 2 }} variant="contained" color="primary">
+      <Container sx={{ mt: 4, textAlign: 'center', p: 3, boxShadow: 3, borderRadius: 2, backgroundColor: 'background.paper' }}>
+        <Typography variant="h5" color="text.secondary" gutterBottom>
+          Your shopping cart is currently empty. 🛒
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+          No worries! If you've just placed an order, your items are now safe in your{' '}
+          <Button 
+            onClick={() => navigate('/orders')} 
+            variant="text" 
+            sx={{ textTransform: 'none', px: 0, py: 0, minWidth: 0 }}
+          >
+            orders
+          </Button>
+          . Otherwise, it's a great time to find some new favorites!
+        </Typography>
+        <Button onClick={() => navigate('/')} sx={{ mt: 2 }} variant="contained" color="primary" size="large">
           Start Shopping
         </Button>
       </Container>
@@ -233,7 +277,7 @@ const CartPage = () => {
           color="primary"
           size="large"
           sx={{ mt: 2, px: 5, py: 1.5, borderRadius: 2, boxShadow: 3 }}
-          onClick={() => navigate('/checkout')}
+          onClick={handleCheckout}
         >
           Proceed to Checkout
         </Button>

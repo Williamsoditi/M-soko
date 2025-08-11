@@ -1,17 +1,17 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext"; // 👈 Import the AuthProvider
+import { AuthProvider } from "./context/AuthContext"; 
 
 import HomePage from "./pages/HomePage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import CartPage from "./pages/CartPage";
-import OrderHistoryPage from "./pages/OrderHistoryPage";
+import OrderHistory from "./pages/OrderHistory";
 import NotFoundPage from "./pages/NotFoundPage";
-import LoginPage from "./pages/LoginPage"; // 👈 New: Import the login page
-import RegisterPage from "./pages/RegisterPage"; // 👈 New: Import the register page
+import LoginPage from "./pages/LoginPage"; 
+import RegisterPage from "./pages/RegisterPage"; 
 import Navbar from "./components/common/Navbar";
 import Footer from "./components/common/Footer";
-import ProtectedRoute from "./components/common/ProtectedRoute"; // 👈 New: Import the ProtectedRoute
+import ProtectedRoute from "./components/common/ProtectedRoute"; 
 import ProfilePage from "./pages/ProfilePage";
 import CheckoutPage from "./pages/CheckoutPage";
 import PrivateRoute from "./components/auth/PrivateRoute";
@@ -47,7 +47,7 @@ const App = () => {
               path="/orders"
               element={
                 <ProtectedRoute>
-                  <OrderHistoryPage />
+                  <OrderHistory />
                 </ProtectedRoute>
               }
             />
