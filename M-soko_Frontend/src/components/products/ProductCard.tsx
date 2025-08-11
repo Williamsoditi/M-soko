@@ -48,7 +48,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </Typography>
           <Box sx={{ mt: 1 }}>
             <Typography variant="h5" component="p" color="primary.main" sx={{ fontWeight: 'bold' }}>
-              ${parseFloat(String(product.price)).toFixed(2)}
+              Kshs {parseFloat(String(product.price)).toFixed(2)}
             </Typography>
           </Box>
         </CardContent>

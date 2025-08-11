@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext'; // 👈 Your Auth Context
-import { useNavigate } from 'react-router-dom'; // 👈 Your Router
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -37,9 +37,9 @@ interface Category {
 }
 
 const ProductsPage = () => {
-  const { isAuthenticated, token } = useAuth(); // 👈 Added Auth Context
-  const navigate = useNavigate(); // 👈 Added Navigate Hook
-  
+  const { isAuthenticated, token } = useAuth();
+  const navigate = useNavigate();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | number>('All');
   const [products, setProducts] = useState<Product[]>([]);
@@ -62,7 +62,7 @@ const ProductsPage = () => {
         }));
         setCategories([{ id: 'All', name: 'All' }, ...fetchedCategories]);
       } catch (err) {
-        console.error("Failed to fetch categories:", err);
+        console.error('Failed to fetch categories:', err);
         setErrorCategories('Failed to load categories.');
       } finally {
         setLoadingCategories(false);
@@ -88,7 +88,7 @@ const ProductsPage = () => {
         const response = await axios.get(API_URL);
         setProducts(response.data);
       } catch (err) {
-        console.error("Failed to fetch products:", err);
+        console.error('Failed to fetch products:', err);
         setErrorProducts('Failed to load products. Please try again later.');
       } finally {
         setLoadingProducts(false);
@@ -104,49 +104,48 @@ const ProductsPage = () => {
   const handleCategoryChange = (event: any) => {
     setSelectedCategory(event.target.value);
   };
-  
-  // 👈 FIX: This is the new, correct handleAddToCart function
-const handleAddToCart = async (product: Product) => {
-        if (!isAuthenticated || !token) {
-            navigate('/login');
-            return;
-        }
 
-        try {
-            await axios.post(
-                'http://localhost:8000/api/orders/cart-items/',
-                { 
-                    // 👈 FIX: Change 'product' to 'product_id'
-                    product_id: product.id,
-                    quantity: 1 
-                },
-                {
-                    headers: {
-                        Authorization: `Token ${token}`,
-                    }
-                }
-            );
-            // Navigate to the cart page after a successful API call
-            navigate('/cart');
-            
-        } catch (err) {
-            console.error('Failed to add item to cart:', err);
-            // Provide a more descriptive alert based on the error
-            if (axios.isAxiosError(err) && err.response) {
-                alert(`Failed to add item to cart: ${err.response.data.detail || 'An unexpected error occurred.'}`);
-            } else {
-                alert('Failed to add item to cart. Please check your login status or try again.');
-            }
+  const handleAddToCart = async (product: Product) => {
+    if (!isAuthenticated || !token) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      await axios.post(
+        'http://localhost:8000/api/orders/cart-items/',
+        {
+          product_id: product.id,
+          quantity: 1,
+        },
+        {
+          headers: {
+            Authorization: `Token ${token}`,
+          },
         }
+      );
+      navigate('/cart');
+    } catch (err) {
+      console.error('Failed to add item to cart:', err);
+      if (axios.isAxiosError(err) && err.response) {
+        alert(
+          `Failed to add item to cart: ${err.response.data.detail || 'An unexpected error occurred.'}`
+        );
+      } else {
+        alert('Failed to add item to cart. Please check your login status or try again.');
+      }
+    }
   };
 
   return (
-    <Box sx={{
-      minHeight: '100vh',
-      backgroundColor: (theme) => theme.palette.grey[50],
-      p: { xs: 2, md: 4 },
-      fontFamily: 'Inter, sans-serif',
-    }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        backgroundColor: (theme) => theme.palette.grey[50],
+        p: { xs: 2, md: 4 },
+        fontFamily: 'Inter, sans-serif',
+      }}
+    >
       <Container maxWidth="xl" sx={{ mt: 4, mb: 8 }}>
         <Typography
           variant="h3"
@@ -159,7 +158,7 @@ const handleAddToCart = async (product: Product) => {
             textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
           }}
         >
-          Our Products 
+          Our Products
         </Typography>
         <Typography
           variant="h6"
@@ -171,22 +170,23 @@ const handleAddToCart = async (product: Product) => {
             mx: 'auto',
           }}
         >
-          Explore a wide range of high-quality products tailored to your needs.
-          Find exactly what you're looking for with our smart search and category filters.
+          Explore a wide range of high-quality products tailored to your needs. Find exactly what you're looking for with our smart search and category filters.
         </Typography>
 
-        <Box sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          gap: 3,
-          mb: 6,
-          p: 3,
-          backgroundColor: 'background.paper',
-          borderRadius: 3,
-          boxShadow: 3,
-          border: '1px solid',
-          borderColor: 'grey.200',
-        }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            gap: 3,
+            mb: 6,
+            p: 3,
+            backgroundColor: 'background.paper',
+            borderRadius: 3,
+            boxShadow: 3,
+            border: '1px solid',
+            borderColor: 'grey.200',
+          }}
+        >
           <TextField
             fullWidth
             variant="outlined"
@@ -202,12 +202,28 @@ const handleAddToCart = async (product: Product) => {
           <FormControl sx={{ minWidth: { xs: '100%', md: 200 } }}>
             <InputLabel id="category-select-label">Category</InputLabel>
             {loadingCategories ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 56, color: 'text.secondary' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: 56,
+                  color: 'text.secondary',
+                }}
+              >
                 <CircularProgress size={20} sx={{ mr: 1 }} />
                 Loading...
               </Box>
             ) : errorCategories ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 56, color: 'error.main' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: 56,
+                  color: 'error.main',
+                }}
+              >
                 Error
               </Box>
             ) : (
@@ -249,7 +265,7 @@ const handleAddToCart = async (product: Product) => {
             </Typography>
           </Box>
         ) : (
-          <Grid container spacing={4}>
+          <Grid container spacing={4} sx={{ display: 'flex' }}>
             {products.map((product) => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
                 <Card
@@ -269,7 +285,7 @@ const handleAddToCart = async (product: Product) => {
                   <CardMedia
                     component="img"
                     height="220"
-                    image={product.image_url || "https://placehold.co/400x400/CCCCCC/000000?text=No+Image"}
+                    image={product.image_url || 'https://placehold.co/400x400/CCCCCC/000000?text=No+Image'}
                     alt={product.name}
                     sx={{
                       objectFit: 'cover',
@@ -278,17 +294,38 @@ const handleAddToCart = async (product: Product) => {
                     }}
                   />
                   <CardContent sx={{ flexGrow: 1 }}>
-                    <Typography variant="h6" component="div" sx={{ fontWeight: 'medium', mb: 1, color: 'text.primary', lineHeight: 1.3 }}>
-                      {product.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, minHeight: 40, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                      {product.description}
-                    </Typography>
-                    <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>
-                      Kshs {product.price ? parseFloat(String(product.price)).toFixed(2) : '0.00'}
-                    </Typography>
+                    <Box sx={{ minHeight: '64px' }}> 
+                      <Typography
+                        variant="h6"
+                        component="div"
+                        sx={{ fontWeight: 'medium', mb: 1, color: 'text.primary', lineHeight: 1.3 }}
+                      >
+                        {product.name}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ minHeight: '40px' }}> 
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          mb: 2,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
+                        {product.description}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center' }}> {/* Fixed height for price */}
+                      <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>
+                        Kshs {product.price ? parseFloat(String(product.price)).toFixed(2) : '0.00'}
+                      </Typography>
+                    </Box>
                   </CardContent>
-                  <CardActions sx={{ p: 2, justifyContent: 'flex-end' }}>
+                  <CardActions sx={{ p: 2, justifyContent: 'flex-end', mt: 'auto' }}>
                     <Button
                       variant="contained"
                       color="primary"
@@ -300,7 +337,7 @@ const handleAddToCart = async (product: Product) => {
                           boxShadow: 4,
                         },
                       }}
-                      onClick={() => handleAddToCart(product)} // 👈 FIX: Added onClick handler
+                      onClick={() => handleAddToCart(product)}
                     >
                       Add to Cart
                     </Button>
