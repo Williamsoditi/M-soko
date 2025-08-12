@@ -337,7 +337,7 @@ const ProductsPage = () => {
                     </CardContent>
                   </CardActionArea>
                   <CardActions sx={{ p: 2, justifyContent: 'flex-end', mt: 'auto' }}>
-                    <Button
+                    {/* <Button
                       variant="contained"
                       color="primary"
                       size="medium"
@@ -351,7 +351,7 @@ const ProductsPage = () => {
                       onClick={(e) => handleAddToCart(e, product)}
                     >
                       Add to Cart
-                    </Button>
+                    </Button> */}
                   </CardActions>
                 </Card>
               </Grid>

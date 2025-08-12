@@ -11,9 +11,9 @@ from users.views import (
     UserProfileRetrieveView, 
     UserProfileUpdateView, 
     AddressViewSet, 
-    LogoutView
+    LogoutView, UserLoginView
 )
-from orders.views import CartViewSet, CartItemViewSet, CheckoutView
+from orders.views import CartViewSet, CartItemViewSet, CheckoutView, OrderHistoryView
 
 # Create a single router for all your apps
 router = DefaultRouter()
@@ -32,7 +32,7 @@ urlpatterns = [
 
     # User Authentication Endpoints
     path('api/register/', UserRegistrationView.as_view(), name='register'),
-    path('api/login/', auth_views.obtain_auth_token, name='api-login'),
+    path('api/login/', UserLoginView.as_view(), name='api-login'),
     path('api/logout/', LogoutView.as_view(), name='api-logout'),
     
     # 👈 New: Separate URL for viewing the profile
@@ -42,7 +42,7 @@ urlpatterns = [
     path('api/profile/edit/', UserProfileUpdateView.as_view(), name='user-profile-edit'),
     
     path('api/checkout/', CheckoutView.as_view(), name='checkout'),
-    # path('api/orders/history/', OrderHistoryView.as_view(), name='order-history'),
+    path('api/orders/history/', OrderHistoryView.as_view(), name='order-history'),
     
     # Nested URLs for Product Reviews
     path('api/products/<int:product_pk>/reviews/', 

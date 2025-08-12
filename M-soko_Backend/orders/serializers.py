@@ -21,8 +21,10 @@ class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = ['id', 'product', 'product_id', 'quantity', 'total_price']
-        # The 'quantity' field must be writable to allow updates
         read_only_fields = ['id', 'total_price']
+        extra_kwargs = {
+            'product_id': {'required': True} # Explicitly make product_id required
+        }
 
     def get_total_price(self, obj):
         return obj.quantity * obj.product.price
@@ -35,24 +37,32 @@ class CartItemSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """
         Handles creation of new cart items or updating existing ones.
+        Ensures product exists and item is linked to an active cart.
         """
         user = self.context['request'].user
         product_id = validated_data.get('product_id')
         quantity = validated_data.get('quantity')
         
-        cart, _ = Cart.objects.get_or_create(user=user, is_active=True)
-        existing_items = CartItem.objects.filter(cart=cart, product_id=product_id)
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            # Raise a validation error if the product is not found
+            raise serializers.ValidationError({"product_id": "Product with this ID does not exist."})
         
-        if existing_items.exists():
-            # If item exists, update its quantity and save
-            first_item = existing_items.first()
-            first_item.quantity += quantity
-            first_item.save()
-            existing_items.exclude(id=first_item.id).delete() # Delete duplicates if any
-            return first_item
+        # Get or create the user's active cart
+        # This mirrors the logic in CartItemViewSet's get_queryset and perform_create
+        cart, _ = Cart.objects.get_or_create(user=user, is_active=True)
+        
+        # Check if this product already exists in the cart
+        existing_item = CartItem.objects.filter(cart=cart, product=product).first()
+        
+        if existing_item:
+            # If item exists, update its quantity
+            existing_item.quantity += quantity
+            existing_item.save()
+            return existing_item
         else:
             # If the item doesn't exist, create a new one
-            product = Product.objects.get(id=product_id)
             return CartItem.objects.create(cart=cart, product=product, quantity=quantity)
 
 
@@ -107,5 +117,4 @@ class OrderHistorySerializer(serializers.ModelSerializer):
         
 
     def get_total_price(self, obj):
-        
         return sum(item.price * item.quantity for item in obj.items.all())

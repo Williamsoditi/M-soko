@@ -1,29 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import {
-  Container,
-  Typography,
-  CircularProgress,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CardMedia,
-  Grid,
-  IconButton,
-} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import DeleteIcon from '@mui/icons-material/Delete';
+import {
+  Box,
+  Typography,
+  Paper,
+  Button,
+  CircularProgress,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  IconButton,
+  Modal,
+  Fade,
+  Backdrop,
+} from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
+import DeleteIcon from '@mui/icons-material/Delete'; // Import the DeleteIcon
 
-// Assuming these interfaces match your backend data structure
+// Define interfaces for better type safety
 interface Product {
   id: number;
   name: string;
   price: number;
-  image_url: string;
 }
 
 interface CartItem {
@@ -39,250 +41,278 @@ interface Cart {
   total_price: number;
 }
 
-const CartPage = () => {
-  const { token, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+const CartPage: React.FC = () => {
+  const { isAuthenticated, token } = useAuth();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
 
-  const fetchCart = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
+  const fetchCart = async () => {
     if (!isAuthenticated || !token) {
       setLoading(false);
-      setError("Please log in to view your cart.");
       return;
     }
-
     try {
-      const response = await axios.get('http://localhost:8000/api/orders/carts/', {
-        headers: {
-          Authorization: `Token ${token}`,
-        },
-      });
-      
-      if (response.data && response.data.length > 0) {
-        setCart(response.data[0]);
+      setLoading(true);
+      const response = await axios.get(
+        "http://localhost:8000/api/orders/carts/",
+        {
+          headers: {
+            Authorization: `Token ${token}`,
+          },
+        }
+      );
+      const cartData = response.data[0] || null;
+
+      if (cartData) {
+        const processedCart = {
+          ...cartData,
+          items: cartData.items.map((item: any) => ({
+            ...item,
+            product: {
+              ...item.product,
+              price: parseFloat(item.product.price),
+            },
+            total_price: parseFloat(item.total_price),
+          })),
+          total_price: parseFloat(cartData.total_price),
+        };
+        setCart(processedCart);
       } else {
         setCart(null);
       }
     } catch (err) {
-      console.error('Failed to fetch cart:', err);
-      setError('Failed to load cart data. Please try logging in again.');
+      console.error("Failed to fetch cart:", err);
+      setError("Failed to fetch cart data.");
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, token]);
+  };
 
   useEffect(() => {
     fetchCart();
-  }, [fetchCart]);
+  }, [isAuthenticated, token]);
 
-  const handleRemoveItem = async (itemId: number) => {
-    if (!isAuthenticated || !token) {
-      navigate('/login');
-      return;
+  const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
+    if (newQuantity < 1) return;
+
+    if (cart) {
+      const updatedItems = cart.items.map((item) =>
+        item.id === itemId ? { ...item, quantity: newQuantity, total_price: newQuantity * item.product.price } : item
+      );
+      const newTotal = updatedItems.reduce((acc, item) => acc + item.total_price, 0);
+
+      setCart({ ...cart, items: updatedItems, total_price: newTotal });
     }
+
     try {
-      await axios.delete(`http://localhost:8000/api/orders/cart-items/${itemId}/`, {
-        headers: {
-          Authorization: `Token ${token}`,
-        },
-      });
-      // Refetch cart to update the UI
-      fetchCart();
+      await axios.patch(
+        `http://localhost:8000/api/orders/cart-items/${itemId}/`,
+        { quantity: newQuantity },
+        { headers: { Authorization: `Token ${token}` } }
+      );
     } catch (err) {
-      console.error('Failed to remove item:', err);
-      alert('Failed to remove item. Please try again.');
+      console.error("Failed to update cart item:", err);
+      setError("Failed to update item quantity. Please try again.");
+      fetchCart();
     }
   };
 
-  const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
-    if (newQuantity < 1) {
-      // If quantity is reduced to 0, call the remove function
-      handleRemoveItem(itemId);
+  const handleRemoveItem = async (itemId: number, productName: string) => {
+    if (!window.confirm(`Are you sure you want to remove "${productName}" from your cart?`)) {
       return;
     }
 
-    if (!isAuthenticated || !token) {
-      navigate('/login');
-      return;
-    }
     try {
-      await axios.patch(`http://localhost:8000/api/orders/cart-items/${itemId}/`, {
-        quantity: newQuantity,
-      }, {
-        headers: {
-          Authorization: `Token ${token}`,
-        },
-      });
-      fetchCart();
+      await axios.delete(
+        `http://localhost:8000/api/orders/cart-items/${itemId}/`,
+        { headers: { Authorization: `Token ${token}` } }
+      );
+
+      // ✅ FIX: Update the local state to remove the item instantly
+      if (cart) {
+        const updatedItems = cart.items.filter(item => item.id !== itemId);
+        const newTotal = updatedItems.reduce((acc, item) => acc + item.total_price, 0);
+        setCart({ ...cart, items: updatedItems, total_price: newTotal });
+      }
     } catch (err) {
-      console.error('Failed to update quantity:', err);
-      alert('Failed to update quantity. Please try again.');
+      console.error("Failed to remove item from cart:", err);
+      setError("Failed to remove item. Please try again.");
+      fetchCart();
     }
   };
 
   const handleCheckout = async () => {
-        if (!isAuthenticated || !token) {
-            alert('Please log in to complete your order.');
-            navigate('/login');
-            return;
-        }
+    if (!cart) {
+      return;
+    }
+    try {
+      await axios.post(
+        'http://localhost:8000/api/checkout/',
+        { cart_id: cart.id },
+        { headers: { Authorization: `Token ${token}` } }
+      );
+      setIsModalOpen(true);
+    } catch (err: unknown) {
+      let errorMessage = 'Checkout failed. Please try again.';
+      if (axios.isAxiosError(err) && err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      }
+      setError(errorMessage);
+    }
+  };
 
-        try {
-            await axios.post(
-                'http://localhost:8000/api/checkout/',
-                {}, // The body can be empty as the backend uses the authenticated user's cart
-                {
-                    headers: {
-                        Authorization: `Token ${token}`,
-                    },
-                }
-            );
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    navigate('/orders');
+  };
 
-            alert('Checkout successful! Your order has been placed.');
-            navigate('/order-history'); // Redirect to the order history page
-
-        } catch (err) {
-            console.error('Checkout failed:', err);
-            let errorMessage = 'Failed to place your order. Please try again.';
-            if (axios.isAxiosError(err) && err.response && err.response.data.detail) {
-                errorMessage = err.response.data.detail;
-            }
-            alert(errorMessage);
-        }
-    };
-
+  const handleStartShopping = () => {
+    navigate('/products');
+  };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <CircularProgress />
       </Box>
     );
   }
 
   if (error) {
-    return (
-      <Container sx={{ mt: 4, textAlign: 'center' }}>
-        <Typography variant="h5" color="error">
-          {error}
-        </Typography>
-        <Button onClick={() => navigate('/login')} sx={{ mt: 2 }} variant="contained">
-          Log In
-        </Button>
-      </Container>
-    );
+    return <Typography color="error" textAlign="center">{error}</Typography>;
   }
 
-  if (!cart || !cart.items || cart.items.length === 0) {
+  if (!cart || cart.items.length === 0) {
     return (
-      <Container sx={{ mt: 4, textAlign: 'center', p: 3, boxShadow: 3, borderRadius: 2, backgroundColor: 'background.paper' }}>
-        <Typography variant="h5" color="text.secondary" gutterBottom>
-          Your shopping cart is currently empty. 🛒
+      <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto', p: 2, textAlign: 'center' }}>
+        <Typography variant="h6" gutterBottom>
+          Your cart is empty.
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          No worries! If you've just placed an order, your items are now safe in your{' '}
-          <Button 
-            onClick={() => navigate('/orders')} 
-            variant="text" 
-            sx={{ textTransform: 'none', px: 0, py: 0, minWidth: 0 }}
-          >
-            orders
-          </Button>
-          . Otherwise, it's a great time to find some new favorites!
-        </Typography>
-        <Button onClick={() => navigate('/')} sx={{ mt: 2 }} variant="contained" color="primary" size="large">
-          Start Shopping
-        </Button>
-      </Container>
-    );
-  }
-
-  return (
-    <Container maxWidth="lg" sx={{ mt: 4, pb: 8 }}>
-      <Typography variant="h3" component="h1" gutterBottom align="center" sx={{ fontWeight: 'bold', mb: 4 }}>
-        Your Shopping Cart
-      </Typography>
-      <Grid container spacing={3}>
-        {cart.items.map((item) => (
-          <Grid item xs={12} key={item.id}>
-            <Card 
-              sx={{ 
-                display: 'flex', 
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: 'center',
-                boxShadow: 3, 
-                borderRadius: 2, 
-                p: 2,
-                transition: 'transform 0.2s ease-in-out',
-                '&:hover': {
-                  transform: 'translateY(-3px)',
-                },
-              }}
-            >
-              <CardMedia
-                component="img"
-                sx={{ 
-                  width: { xs: '100%', sm: 120 },
-                  height: { xs: 150, sm: 120 },
-                  objectFit: 'contain', 
-                  borderRadius: 1,
-                  flexShrink: 0,
-                  mb: { xs: 2, sm: 0 },
-                  mr: { xs: 0, sm: 2 },
-                }}
-                image={item.product.image_url || 'https://placehold.co/120x120/CCCCCC/000000?text=No+Image'}
-                alt={item.product.name}
-              />
-              <CardContent sx={{ flexGrow: 1, p: 1 }}>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 'medium' }}>
-                  {item.product.name}
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                  Unit Price: Kshs {parseFloat(String(item.product.price)).toFixed(2)}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                  <Typography variant="body1">Quantity:</Typography>
-                  <IconButton size="small" onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1}>
-                    <RemoveIcon fontSize="small" />
-                  </IconButton>
-                  <Typography variant="body1" sx={{ mx: 1 }}>{item.quantity}</Typography>
-                  <IconButton size="small" onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}>
-                    <AddIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-                <Typography variant="h5" color="primary" sx={{ mt: 1, fontWeight: 'bold' }}>
-                  Item Total: Kshs {item.total_price.toFixed(2)}
-                </Typography>
-              </CardContent>
-              <Box sx={{ p: 2, alignSelf: { xs: 'flex-end', sm: 'center' } }}>
-                <IconButton color="error" aria-label="delete item" onClick={() => handleRemoveItem(item.id)}>
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-      <Box sx={{ mt: 5, p: 3, backgroundColor: 'background.paper', borderRadius: 2, boxShadow: 4, textAlign: 'right' }}>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
-          Cart Total: Kshs {cart.total_price.toFixed(2)}
+        <Typography variant="body1" sx={{ mb: 2 }}>
+          Looks like you haven't added any items yet.
         </Typography>
         <Button
           variant="contained"
           color="primary"
-          size="large"
-          sx={{ mt: 2, px: 5, py: 1.5, borderRadius: 2, boxShadow: 3 }}
+          onClick={handleStartShopping}
+        >
+          Start Shopping
+        </Button>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto', p: 2 }}>
+      <Typography variant="h4" gutterBottom textAlign="center">
+        Your Shopping Cart
+      </Typography>
+      <Paper elevation={3} sx={{ p: 3 }}>
+        <List>
+          {cart.items.map((item) => (
+            <ListItem 
+              key={item.id}
+              secondaryAction={
+                <IconButton 
+                  edge="end" 
+                  aria-label="delete"
+                  onClick={() => handleRemoveItem(item.id, item.product.name)}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              }
+            >
+              <ListItemText
+                primary={`${item.product.name} x ${item.quantity}`}
+                secondary={`Unit Price: Kshs. ${item.product.price.toFixed(2)}`}
+              />
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <IconButton 
+                  size="small" 
+                  onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                  disabled={item.quantity <= 1}
+                >
+                  <RemoveIcon />
+                </IconButton>
+                <Typography sx={{ mx: 1 }}>{item.quantity}</Typography>
+                <IconButton 
+                  size="small" 
+                  onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                >
+                  <AddIcon />
+                </IconButton>
+                <Typography variant="body1" sx={{ ml: 2 }}>
+                  Kshs. {item.total_price.toFixed(2)}
+                </Typography>
+              </Box>
+            </ListItem>
+          ))}
+        </List>
+        <Divider sx={{ my: 2 }} />
+        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Typography variant="h6">Total:</Typography>
+          <Typography variant="h6">Kshs. {cart.total_price.toFixed(2)}</Typography>
+        </Box>
+        <Button
+          variant="contained"
+          color="primary"
+          fullWidth
+          sx={{ mt: 3 }}
           onClick={handleCheckout}
         >
           Proceed to Checkout
         </Button>
-      </Box>
-    </Container>
+      </Paper>
+
+      {/* The Modal is displayed after successful checkout */}
+      <Modal
+        aria-labelledby="transition-modal-title"
+        aria-describedby="transition-modal-description"
+        open={isModalOpen}
+        onClose={handleModalClose}
+        closeAfterTransition
+        slots={{ backdrop: Backdrop }}
+        slotProps={{
+          backdrop: {
+            timeout: 500,
+          },
+        }}
+      >
+        <Fade in={isModalOpen}>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: { xs: 300, sm: 400 },
+              bgcolor: 'background.paper',
+              borderRadius: 2,
+              boxShadow: 24,
+              p: 4,
+              textAlign: 'center',
+            }}
+          >
+            <Typography id="transition-modal-title" variant="h6" component="h2">
+              Order Placed Successfully!
+            </Typography>
+            <Typography id="transition-modal-description" sx={{ mt: 2, mb: 3 }}>
+              Your items have been successfully purchased. You are now being redirected to your order history.
+            </Typography>
+            <Button
+              onClick={handleModalClose}
+              variant="contained"
+              color="primary"
+            >
+              View Orders
+            </Button>
+          </Box>
+        </Fade>
+      </Modal>
+    </Box>
   );
 };
 

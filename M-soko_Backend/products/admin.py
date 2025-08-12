@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import Product, Category, Review
 
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'stock', 'category', 'created_at')
+    list_display = ('id', 'name', 'price', 'stock', 'category', 'created_at')
     list_filter = ('category',)
     search_fields = ('name', 'description')
 

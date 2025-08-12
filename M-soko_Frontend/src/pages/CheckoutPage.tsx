@@ -12,7 +12,6 @@ import {
   ListItem,
   ListItemText,
   Divider,
-  Alert,
 } from '@mui/material';
 
 const CheckoutPage: React.FC = () => {
@@ -20,7 +19,6 @@ const CheckoutPage: React.FC = () => {
   const [cart, setCart] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const fetchCart = async () => {
@@ -30,14 +28,23 @@ const CheckoutPage: React.FC = () => {
     }
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:8000/api/orders/carts/', {
-        headers: {
-          Authorization: `Token ${token}`,
-        },
-      });
-      setCart(response.data.results[0] || null);
+      const response = await axios.get(
+        "http://localhost:8000/api/orders/carts/",
+        {
+          headers: {
+            Authorization: `Token ${token}`,
+          },
+        }
+      );
+      const cartData = response.data[0] || null;
+      if (cartData) {
+        setCart(cartData);
+      } else {
+        setCart(null);
+      }
     } catch (err) {
-      setError('Failed to fetch cart data.');
+      console.error("Failed to fetch cart:", err);
+      setError("Failed to fetch cart data.");
     } finally {
       setLoading(false);
     }
@@ -55,14 +62,20 @@ const CheckoutPage: React.FC = () => {
         { cart_id: cart.id },
         { headers: { Authorization: `Token ${token}` } }
       );
-      setMessage('Checkout successful! Redirecting to your orders...');
-      setTimeout(() => {
-        navigate('/orders');
-      }, 2000);
+      
+      // ✅ FIX: Show a native alert and then navigate immediately.
+      // Removed setCart(null) to prevent the empty cart state from rendering.
+      alert('Items added successfully!');
+      navigate('/orders');
+
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Checkout failed. Please try again.';
       setError(errorMessage);
     }
+  };
+
+  const handleStartShopping = () => {
+    navigate('/products');
   };
 
   if (loading) {
@@ -79,9 +92,21 @@ const CheckoutPage: React.FC = () => {
 
   if (!cart || cart.items.length === 0) {
     return (
-      <Typography variant="h6" textAlign="center" mt={4}>
-        Your cart is empty. Please add items before checking out.
-      </Typography>
+      <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto', p: 2, textAlign: 'center' }}>
+        <Typography variant="h6" gutterBottom>
+          Your cart is empty.
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 2 }}>
+          Looks like you haven't added any items yet.
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleStartShopping}
+        >
+          Start Shopping
+        </Button>
+      </Box>
     );
   }
 
@@ -91,7 +116,6 @@ const CheckoutPage: React.FC = () => {
         Order Summary
       </Typography>
       <Paper elevation={3} sx={{ p: 3 }}>
-        {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
         <List>
           {cart.items.map((item: any) => (
             <ListItem key={item.id}>

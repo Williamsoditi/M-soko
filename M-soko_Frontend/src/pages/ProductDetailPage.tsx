@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -9,6 +9,9 @@ import {
   Container,
   CardMedia,
   Button,
+  Modal,
+  Fade,
+  Backdrop
 } from '@mui/material';
 
 interface Product {
@@ -27,7 +30,13 @@ const ProductDetailPage = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null); // State for success/error messages
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [addedProductName, setAddedProductName] = useState('');
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    navigate('/products');
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -44,20 +53,18 @@ const ProductDetailPage = () => {
     fetchProduct();
   }, [id]);
 
-  // Handle adding an item to the cart
   const handleAddToCart = async () => {
     if (!isAuthenticated || !token) {
-      navigate('/login'); // Redirect to login if not authenticated
+      navigate('/login');
       return;
     }
 
     if (!product) {
-      setMessage('Product data is not available.');
+      alert('Product data is not available.');
       return;
     }
 
     try {
-      // Send a POST request to add the item to the cart
       await axios.post(
         'http://localhost:8000/api/orders/cart-items/',
         { product_id: product.id, quantity: 1 },
@@ -67,9 +74,10 @@ const ProductDetailPage = () => {
           },
         }
       );
-      setMessage('Item added to cart successfully!');
+      setAddedProductName(product.name);
+      setIsModalOpen(true);
     } catch (err) {
-      setMessage('Failed to add item to cart. Please try again.');
+      alert('Failed to add item to cart. Please try again.');
       console.error(err);
     }
   };
@@ -82,6 +90,7 @@ const ProductDetailPage = () => {
     );
   }
 
+  // ✅ FIXED: Corrected the syntax error in this block
   if (error || !product) {
     return (
       <Container sx={{ mt: 4, textAlign: 'center' }}>
@@ -91,38 +100,96 @@ const ProductDetailPage = () => {
       </Container>
     );
   }
-  if (message) {
-    return <Typography color={error ? "error" : "success"} textAlign="center">{message}</Typography>;
-  }
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4 }}>
-      <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} gap={4}>
-        <CardMedia
-          component="img"
-          sx={{ width: '100%', height: 'auto', maxHeight: 400, objectFit: 'contain' }}
-          image={product.image_url || 'https://placehold.co/600x400/CCCCCC/000000?text=No+Image'}
-          alt={product.name}
-        />
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="h3" gutterBottom>{product.name}</Typography>
-          <Typography variant="h4" color="primary" sx={{ mb: 2 }}>
-            Kshs {parseFloat(String(product.price)).toFixed(2)}
-          </Typography>
-          <Typography variant="body1" color="text.secondary" paragraph>
-            {product.description}
-          </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            sx={{ mt: 3 }}
-            onClick={handleAddToCart}
-          >
-            Add to Cart
-          </Button>
+    <>
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} gap={4}>
+          <CardMedia
+            component="img"
+            sx={{
+              width: '100%',
+              height: 'auto',
+              maxHeight: 400,
+              objectFit: 'contain',
+              borderRadius: 2,
+              boxShadow: 3
+            }}
+            image={product.image_url || 'https://placehold.co/600x400/CCCCCC/000000?text=No+Image'}
+            alt={product.name}
+          />
+          <Box sx={{ flex: 1, p: 2 }}>
+            <Typography variant="h3" gutterBottom>{product.name}</Typography>
+            <Typography variant="h4" color="primary" sx={{ mb: 2 }}>
+              Kshs {parseFloat(String(product.price)).toFixed(2)}
+            </Typography>
+            <Typography variant="body1" color="text.secondary" paragraph>
+              {product.description}
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              sx={{ mt: 3 }}
+              onClick={handleAddToCart}
+            >
+              Add to Cart
+            </Button>
+          </Box>
         </Box>
-      </Box>
-    </Container>
+      </Container>
+      
+      <Modal
+        aria-labelledby="transition-modal-title"
+        aria-describedby="transition-modal-description"
+        open={isModalOpen}
+        onClose={handleCloseModal}
+        closeAfterTransition
+        slots={{ backdrop: Backdrop }}
+        slotProps={{
+          backdrop: {
+            timeout: 500,
+          },
+        }}
+      >
+        <Fade in={isModalOpen}>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: { xs: 300, sm: 400 },
+              bgcolor: 'background.paper',
+              borderRadius: 2,
+              boxShadow: 24,
+              p: 4,
+              textAlign: 'center',
+            }}
+          >
+            <Typography id="transition-modal-title" variant="h6" component="h2">
+              ✅ Item Added to Cart!
+            </Typography>
+            <Typography id="transition-modal-description" sx={{ mt: 2, mb: 3 }}>
+              "{addedProductName}" has been successfully added to your shopping cart.
+            </Typography>
+            <Button
+              onClick={handleCloseModal}
+              variant="outlined"
+              sx={{ mr: 1 }}
+            >
+              Continue Shopping
+            </Button>
+            <Button
+              onClick={() => navigate('/cart')}
+              variant="contained"
+              color="primary"
+            >
+              View Cart
+            </Button>
+          </Box>
+        </Fade>
+      </Modal>
+    </>
   );
 };
 

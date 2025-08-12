@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token # Import the Token model
-
+from django.contrib.auth import authenticate
 from .models import Address, CustomUser
 from .serializers import (
     AddressSerializer, 
@@ -57,3 +57,31 @@ class LogoutView(APIView):
             return Response({"message": "Successfully logged out."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": "Logout failed."}, status=status.HTTP_400_BAD_REQUEST)
+        
+class UserLoginView(APIView):
+    permission_classes = [AllowAny] 
+
+    def post(self, request, *args, **kwargs):
+        print("UserLoginView is being called!")
+        username = request.data.get('username')
+        password = request.data.get('password')
+        
+        user = authenticate(username=username, password=password)
+        
+        if user:
+            # 👈 Fix: Delete any existing token to ensure a new one is always created
+            Token.objects.filter(user=user).delete()
+            
+            # 👈 Fix: Create a brand new token for the user
+            token = Token.objects.create(user=user)
+            
+            return Response({
+                'token': token.key,
+                'username': user.username,
+                'email': user.email
+            }, status=status.HTTP_200_OK)
+        
+        return Response(
+            {'error': 'Invalid credentials'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
