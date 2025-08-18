@@ -16,10 +16,14 @@ import {
   Modal,
   Fade,
   Backdrop,
+  Grid,
+  Alert,
+  AlertTitle,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
-import DeleteIcon from '@mui/icons-material/Delete'; // Import the DeleteIcon
+import DeleteIcon from '@mui/icons-material/Delete';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 
 // Define interfaces for better type safety
 interface Product {
@@ -85,7 +89,7 @@ const CartPage: React.FC = () => {
       }
     } catch (err) {
       console.error("Failed to fetch cart:", err);
-      setError("Failed to fetch cart data.");
+      setError("We couldn't load your cart. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -98,12 +102,12 @@ const CartPage: React.FC = () => {
   const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
     if (newQuantity < 1) return;
 
+    // Optimistically update the UI
     if (cart) {
       const updatedItems = cart.items.map((item) =>
         item.id === itemId ? { ...item, quantity: newQuantity, total_price: newQuantity * item.product.price } : item
       );
       const newTotal = updatedItems.reduce((acc, item) => acc + item.total_price, 0);
-
       setCart({ ...cart, items: updatedItems, total_price: newTotal });
     }
 
@@ -115,7 +119,8 @@ const CartPage: React.FC = () => {
       );
     } catch (err) {
       console.error("Failed to update cart item:", err);
-      setError("Failed to update item quantity. Please try again.");
+      setError("Failed to update item quantity. Your cart has been reverted to its previous state.");
+      // Re-fetch to synchronize state with the server
       fetchCart();
     }
   };
@@ -125,27 +130,28 @@ const CartPage: React.FC = () => {
       return;
     }
 
+    // Optimistically update the UI
+    if (cart) {
+      const updatedItems = cart.items.filter(item => item.id !== itemId);
+      const newTotal = updatedItems.reduce((acc, item) => acc + item.total_price, 0);
+      setCart({ ...cart, items: updatedItems, total_price: newTotal });
+    }
+
     try {
       await axios.delete(
         `http://localhost:8000/api/orders/cart-items/${itemId}/`,
         { headers: { Authorization: `Token ${token}` } }
       );
-
-      // ✅ FIX: Update the local state to remove the item instantly
-      if (cart) {
-        const updatedItems = cart.items.filter(item => item.id !== itemId);
-        const newTotal = updatedItems.reduce((acc, item) => acc + item.total_price, 0);
-        setCart({ ...cart, items: updatedItems, total_price: newTotal });
-      }
     } catch (err) {
       console.error("Failed to remove item from cart:", err);
-      setError("Failed to remove item. Please try again.");
+      setError(`Failed to remove "${productName}". Please try again.`);
+      // Re-fetch to synchronize state with the server
       fetchCart();
     }
   };
 
   const handleCheckout = async () => {
-    if (!cart) {
+    if (!cart || cart.items.length === 0) {
       return;
     }
     try {
@@ -181,91 +187,100 @@ const CartPage: React.FC = () => {
     );
   }
 
-  if (error) {
-    return <Typography color="error" textAlign="center">{error}</Typography>;
-  }
-
-  if (!cart || cart.items.length === 0) {
-    return (
-      <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto', p: 2, textAlign: 'center' }}>
-        <Typography variant="h6" gutterBottom>
-          Your cart is empty.
-        </Typography>
-        <Typography variant="body1" sx={{ mb: 2 }}>
-          Looks like you haven't added any items yet.
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleStartShopping}
-        >
-          Start Shopping
-        </Button>
-      </Box>
-    );
-  }
-
   return (
     <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto', p: 2 }}>
-      <Typography variant="h4" gutterBottom textAlign="center">
-        Your Shopping Cart
+      <Typography variant="h4" gutterBottom textAlign="center" fontWeight="bold">
+        Your Shopping Cart 
       </Typography>
-      <Paper elevation={3} sx={{ p: 3 }}>
-        <List>
-          {cart.items.map((item) => (
-            <ListItem 
-              key={item.id}
-              secondaryAction={
-                <IconButton 
-                  edge="end" 
-                  aria-label="delete"
-                  onClick={() => handleRemoveItem(item.id, item.product.name)}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              }
-            >
-              <ListItemText
-                primary={`${item.product.name} x ${item.quantity}`}
-                secondary={`Unit Price: Kshs. ${item.product.price.toFixed(2)}`}
-              />
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <IconButton 
-                  size="small" 
-                  onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                  disabled={item.quantity <= 1}
-                >
-                  <RemoveIcon />
-                </IconButton>
-                <Typography sx={{ mx: 1 }}>{item.quantity}</Typography>
-                <IconButton 
-                  size="small" 
-                  onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                >
-                  <AddIcon />
-                </IconButton>
-                <Typography variant="body1" sx={{ ml: 2 }}>
-                  Kshs. {item.total_price.toFixed(2)}
-                </Typography>
-              </Box>
-            </ListItem>
-          ))}
-        </List>
-        <Divider sx={{ my: 2 }} />
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="h6">Total:</Typography>
-          <Typography variant="h6">Kshs. {cart.total_price.toFixed(2)}</Typography>
-        </Box>
-        <Button
-          variant="contained"
-          color="primary"
-          fullWidth
-          sx={{ mt: 3 }}
-          onClick={handleCheckout}
-        >
-          Proceed to Checkout
-        </Button>
-      </Paper>
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <AlertTitle>Error</AlertTitle>
+          {error}
+        </Alert>
+      )}
+      {!cart || cart.items.length === 0 ? (
+        <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
+          <ShoppingCartOutlinedIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h6" gutterBottom>
+            Your cart is empty.
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3, color: 'text.secondary' }}>
+            Looks like you haven't added any items yet. Start shopping to find great products!
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleStartShopping}
+            size="large"
+          >
+            Start Shopping
+          </Button>
+        </Paper>
+      ) : (
+        <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 } }}>
+          <List>
+            {cart.items.map((item, index) => (
+              <React.Fragment key={item.id}>
+                <ListItem sx={{ py: 2 }}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={6}>
+                      <ListItemText
+                        primary={<Typography variant="body1" fontWeight="medium">{item.product.name}</Typography>}
+                        secondary={`Price: Kshs. ${item.product.price.toFixed(2)}`}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                          disabled={item.quantity <= 1}
+                        >
+                          <RemoveIcon />
+                        </IconButton>
+                        <Typography sx={{ mx: 1, minWidth: '20px', textAlign: 'center' }}>{item.quantity}</Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                        >
+                          <AddIcon />
+                        </IconButton>
+                        <Typography variant="body1" sx={{ ml: 2, minWidth: '90px', textAlign: 'right' }} fontWeight="bold">
+                          Kshs. {item.total_price.toFixed(2)}
+                        </Typography>
+                        <IconButton
+                          edge="end"
+                          aria-label="delete"
+                          onClick={() => handleRemoveItem(item.id, item.product.name)}
+                          sx={{ ml: 1 }}
+                        >
+                          <DeleteIcon color="error" />
+                        </IconButton>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </ListItem>
+                {index < cart.items.length - 1 && <Divider component="li" />}
+              </React.Fragment>
+            ))}
+          </List>
+          <Divider sx={{ my: 3 }} />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5" fontWeight="bold">Grand Total:</Typography>
+            <Typography variant="h5" color="primary" fontWeight="bold">Kshs. {cart.total_price.toFixed(2)}</Typography>
+          </Box>
+          <Button
+            variant="contained"
+            color="primary"
+            fullWidth
+            size="large"
+            onClick={handleCheckout}
+            sx={{ py: 1.5, fontSize: '1.1rem' }}
+          >
+            Proceed to Checkout
+          </Button>
+        </Paper>
+      )}
 
       {/* The Modal is displayed after successful checkout */}
       <Modal
@@ -296,16 +311,17 @@ const CartPage: React.FC = () => {
               textAlign: 'center',
             }}
           >
-            <Typography id="transition-modal-title" variant="h6" component="h2">
-              Order Placed Successfully!
+            <Typography id="transition-modal-title" variant="h6" component="h2" fontWeight="bold">
+              Order Placed Successfully! 🎉
             </Typography>
-            <Typography id="transition-modal-description" sx={{ mt: 2, mb: 3 }}>
+            <Typography id="transition-modal-description" sx={{ mt: 2, mb: 3, color: 'text.secondary' }}>
               Your items have been successfully purchased. You are now being redirected to your order history.
             </Typography>
             <Button
               onClick={handleModalClose}
               variant="contained"
               color="primary"
+              size="large"
             >
               View Orders
             </Button>

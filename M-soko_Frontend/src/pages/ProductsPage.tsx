@@ -90,7 +90,7 @@ const ProductsPage = () => {
         setProducts(response.data);
       } catch (err) {
         console.error('Failed to fetch products:', err);
-        setErrorProducts('Failed to load products. Please try again later.');
+        setErrorProducts('Failed to fetch products. We are working on it. Please try again later.');
       } finally {
         setLoadingProducts(false);
       }
@@ -233,7 +233,7 @@ const ProductsPage = () => {
                   color: 'error.main',
                 }}
               >
-                Error
+                Loading Categories...
               </Box>
             ) : (
               <Select
@@ -264,7 +264,7 @@ const ProductsPage = () => {
         ) : errorProducts ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 10 }}>
             <Typography variant="h5" color="error">
-              Error: {errorProducts}
+               {errorProducts}
             </Typography>
           </Box>
         ) : products.length === 0 ? (

@@ -14,33 +14,50 @@ import {
   useTheme,
   useMediaQuery,
   Divider,
+  Menu, 
+  MenuItem, 
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle'; 
+import HomeIcon from '@mui/icons-material/Home'; 
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart'; 
+import StoreIcon from '@mui/icons-material/Store'; 
+import LocalShippingIcon from '@mui/icons-material/LocalShipping'; 
+import ExitToAppIcon from '@mui/icons-material/ExitToApp'; 
 
-// 👈 New: Import the useAuth hook
 import { useAuth } from '../../context/AuthContext';
 
 const Navbar: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null); // 👈 New state for menu
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
-  // 👈 New: Use the auth hook to get state and logout function
   const { isAuthenticated, logout } = useAuth();
 
   const handleDrawerToggle = () => {
     setDrawerOpen(!drawerOpen);
   };
 
-  // 👈 New: Conditionally show profile link if authenticated
+  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
   const navLinks = [
-    { title: 'Home', path: '/' },
-    { title: 'Products', path: '/products' },
-    { title: 'Cart', path: '/cart' },
-    { title: 'Orders', path: '/orders' },
+    { title: 'Home', path: '/', icon: <HomeIcon /> },
+    { title: 'Products', path: '/products', icon: <StoreIcon /> },
+    { title: 'Cart', path: '/cart', icon: <ShoppingCartIcon /> },
+    { title: 'Orders', path: '/orders', icon: <LocalShippingIcon /> },
   ];
+
+  const getIsActive = (path: string) => {
+    return path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+  };
 
   const drawer = (
     <Box
@@ -49,111 +66,79 @@ const Navbar: React.FC = () => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-start',
         p: 2,
-        backgroundColor: theme.palette.background.paper,
+        backgroundColor: theme.palette.background.default,
       }}
       role="presentation"
       onClick={handleDrawerToggle}
       onKeyDown={handleDrawerToggle}
     >
-      <IconButton
-        onClick={handleDrawerToggle}
-        sx={{
-          position: 'absolute',
-          top: theme.spacing(1),
-          right: theme.spacing(1),
-          color: theme.palette.text.primary,
-        }}
-      >
-        <CloseIcon />
-      </IconButton>
-
+      <Box sx={{ width: '100%', display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+        <IconButton onClick={handleDrawerToggle}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
       <List sx={{ width: '100%' }}>
-        {navLinks.map((link) => {
-          const isActive = link.path === '/'
-            ? location.pathname === '/'
-            : location.pathname.startsWith(link.path);
-
-          return (
-            <ListItem
-              key={link.title}
-              button
-              component={Link}
-              to={link.path}
-              selected={isActive}
-              sx={{
-                justifyContent: 'center',
-                py: 2,
-                '&.Mui-selected': {
-                  backgroundColor: theme.palette.primary.main,
-                  color: theme.palette.common.white,
-                  fontWeight: 'bold',
-                  borderRadius: 1,
-                  '&:hover': {
-                    backgroundColor: theme.palette.primary.main,
-                  },
-                },
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
-                },
-              }}
-            >
+        {navLinks.map((link) => (
+          <ListItem
+            key={link.title}
+            button
+            component={Link}
+            to={link.path}
+            selected={getIsActive(link.path)}
+            sx={{
+              py: 1.5,
+              '&.Mui-selected': {
+                backgroundColor: theme.palette.primary.light,
+                color: theme.palette.primary.contrastText,
+                fontWeight: 'bold',
+                borderRadius: 1,
+              },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              {link.icon && <Box sx={{ mr: 2 }}>{link.icon}</Box>}
               <ListItemText primary={link.title} />
-            </ListItem>
-          );
-        })}
-        {/* 👈 New: Profile and Logout links in the mobile drawer */}
+            </Box>
+          </ListItem>
+        ))}
+        <Divider sx={{ my: 1 }} />
         {isAuthenticated ? (
-            <>
-                <ListItem
-                    button
-                    component={Link}
-                    to="/profile"
-                    selected={location.pathname === '/profile'}
-                    sx={{ justifyContent: 'center', py: 2 }}
-                >
-                    <ListItemText primary="Profile" />
-                </ListItem>
-                <ListItem
-                    button
-                    onClick={logout}
-                    sx={{ justifyContent: 'center', py: 2 }}
-                >
-                    <ListItemText primary="Logout" />
-                </ListItem>
-            </>
+          <>
+            <ListItem button component={Link} to="/profile" onClick={handleDrawerToggle} sx={{ py: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <AccountCircleIcon sx={{ mr: 2 }} />
+                <ListItemText primary="Profile" />
+              </Box>
+            </ListItem>
+            <ListItem button onClick={() => { logout(); handleDrawerToggle(); }} sx={{ py: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <ExitToAppIcon sx={{ mr: 2 }} />
+                <ListItemText primary="Logout" />
+              </Box>
+            </ListItem>
+          </>
         ) : (
-            <>
-                <ListItem
-                    button
-                    component={Link}
-                    to="/login"
-                    selected={location.pathname === '/login'}
-                    sx={{ justifyContent: 'center', py: 2 }}
-                >
-                    <ListItemText primary="Login" />
-                </ListItem>
-                <ListItem
-                    button
-                    component={Link}
-                    to="/register"
-                    selected={location.pathname === '/register'}
-                    sx={{ justifyContent: 'center', py: 2 }}
-                >
-                    <ListItemText primary="Register" />
-                </ListItem>
-            </>
+          <>
+            <ListItem button component={Link} to="/login" onClick={handleDrawerToggle} sx={{ py: 1.5 }}>
+              <ListItemText primary="Login" />
+            </ListItem>
+            <ListItem button component={Link} to="/register" onClick={handleDrawerToggle} sx={{ py: 1.5 }}>
+              <ListItemText primary="Register" />
+            </ListItem>
+          </>
         )}
       </List>
       <Box sx={{
-        position: 'absolute',
-        bottom: theme.spacing(2),
+        mt: 'auto',
         width: '100%',
+        textAlign: 'center',
+        pb: 2,
       }}>
-        <Divider sx={{ mb: 1 }} />
-        <Typography variant="body2" color="text.secondary" textAlign="center">
+        <Divider sx={{ my: 1 }} />
+        <Typography variant="body2" color="text.secondary">
           © {new Date().getFullYear()} M-soko
         </Typography>
       </Box>
@@ -163,7 +148,7 @@ const Navbar: React.FC = () => {
   return (
     <>
       <AppBar position="sticky" sx={{ zIndex: theme.zIndex.drawer + 1, boxShadow: 3 }}>
-        <Toolbar>
+        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
           <Typography
             variant="h5"
             component={Link}
@@ -173,7 +158,6 @@ const Navbar: React.FC = () => {
               textDecoration: 'none',
               color: 'inherit',
               fontWeight: 'bold',
-              fontFamily: 'Roboto, sans-serif',
             }}
           >
             M-soko
@@ -186,7 +170,7 @@ const Navbar: React.FC = () => {
               aria-label="menu"
               onClick={handleDrawerToggle}
             >
-              {drawerOpen ? <CloseIcon /> : <MenuIcon />}
+              <MenuIcon />
             </IconButton>
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -197,11 +181,13 @@ const Navbar: React.FC = () => {
                   to={link.path}
                   sx={{
                     color: 'white',
-                    ml: 2,
-                    fontWeight: 'bold',
-                    borderBottom: location.pathname.startsWith(link.path) && link.path !== '/' ? '2px solid' : 'none',
+                    ml: 3,
+                    fontWeight: getIsActive(link.path) ? 'bold' : 'normal',
+                    borderBottom: getIsActive(link.path) ? '2px solid' : 'none',
+                    borderColor: 'white',
                     borderRadius: 0,
-                    transition: 'border-color 0.3s',
+                    textTransform: 'none',
+                    transition: 'border-bottom 0.3s',
                     '&:hover': {
                       borderBottom: '2px solid',
                       borderColor: 'white',
@@ -212,35 +198,47 @@ const Navbar: React.FC = () => {
                   {link.title}
                 </Button>
               ))}
-              {/* 👈 New: Profile and Logout links in the desktop navbar */}
               {isAuthenticated ? (
-                <>
-                  <Button
-                    component={Link}
-                    to="/profile"
-                    sx={{
-                        color: 'white',
-                        ml: 2,
-                        fontWeight: 'bold',
-                        borderBottom: location.pathname === '/profile' ? '2px solid' : 'none',
-                        borderRadius: 0,
-                    }}
+                <Box>
+                  <IconButton
+                    color="inherit"
+                    onClick={handleMenu}
+                    sx={{ ml: 2, p: 0 }}
                   >
-                    Profile
-                  </Button>
-                  <Button color="inherit" onClick={logout} sx={{ ml: 2, fontWeight: 'bold' }}>
-                    Logout
-                  </Button>
-                </>
+                    <AccountCircleIcon sx={{ fontSize: 32 }} />
+                  </IconButton>
+                  <Menu
+                    id="menu-appbar"
+                    anchorEl={anchorEl}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'right',
+                    }}
+                    keepMounted
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'right',
+                    }}
+                    open={Boolean(anchorEl)}
+                    onClose={handleClose}
+                  >
+                    <MenuItem onClick={handleClose} component={Link} to="/profile">
+                      Profile
+                    </MenuItem>
+                    <MenuItem onClick={() => { logout(); handleClose(); }}>
+                      Logout
+                    </MenuItem>
+                  </Menu>
+                </Box>
               ) : (
-                <>
-                  <Button component={Link} to="/login" sx={{ color: 'white', ml: 2, fontWeight: 'bold' }}>
+                <Box sx={{ ml: 2 }}>
+                  <Button component={Link} to="/login" color="inherit" sx={{ fontWeight: 'bold' }}>
                     Login
                   </Button>
-                  <Button component={Link} to="/register" sx={{ color: 'white', ml: 2, fontWeight: 'bold' }}>
+                  <Button variant="contained" component={Link} to="/register" sx={{ ml: 2, bgcolor: theme.palette.secondary.main }}>
                     Register
                   </Button>
-                </>
+                </Box>
               )}
             </Box>
           )}
